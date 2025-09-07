@@ -18,16 +18,18 @@ export interface Product extends BaseItem {}
 export interface Scene extends BaseItem {}
 export interface Model extends BaseItem {}
 export interface Accessory extends BaseItem {}
-export interface Pose extends BaseItem {}
+export interface Pose extends BaseItem {
+  prompt?: string;
+}
 
 // Type for a saved collection in the Lookbook.
 export interface Collection {
     id: number;
     timestamp: Date;
-    result: GeneratedResult;
+    result: GeneratedResult[];
     selections: {
-        product: Product | null;
-        model: Model | null;
+        products: Product[];
+        models: Model[];
         scene: Scene | null;
         color: string | null;
         accessories: Accessory[];
@@ -38,7 +40,7 @@ export interface Collection {
 // Type for a recommendation from the AI Stylist.
 export interface StylistSuggestion {
   description: string;
-  productName: string;
+  productNames: string[];
   modelName: string;
   sceneName: string;
   accessoryNames: string[];
@@ -52,6 +54,7 @@ export interface GeneratedResult {
     error?: string;
     videoOperation?: any; 
     cutoutImage?: string;
+    model: Model;
 }
 
 // Type for the state of the generation process.

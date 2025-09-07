@@ -130,13 +130,15 @@ export const processUploadedModelImage = async (imageUrl: string): Promise<{ ima
 
 
 interface CompositionParams {
-    product: Product;
+    products: Product[];
     model: Model;
     scene: Scene | null;
     sceneColor: string | null;
     pose: Pose;
+    customPosePrompt?: string;
     accessories: Accessory[];
     referenceImageUrl?: string | null;
+    negativePrompt?: string;
 }
 
 /**
@@ -147,10 +149,12 @@ interface CompositionParams {
 export const generateProductShot = async (params: CompositionParams): Promise<{ imageUrl: string }> => {
     const model = 'gemini-2.5-flash-image-preview';
     
+    const effectivePosePrompt = params.customPosePrompt || params.pose.prompt || `the pose '${params.pose.name}'`;
+
     let prompt = `Create a photorealistic fashion product shot.
 - **Model**: Use the provided model image as the base.
-- **Clothing**: Dress the model in the provided clothing item ('${params.product.name}'). The clothing must fit perfectly and look natural.
-- **Pose**: The model should adopt the specified pose. Use the pose image as a visual reference for the body position.
+- **Clothing**: Dress the model in the provided clothing items (${params.products.map(p => `'${p.name}'`).join(', ')}). Layer them appropriately (e.g., t-shirt under a jacket). The clothing must fit perfectly and look natural.
+- **Pose**: The model should adopt a pose described as: "${effectivePosePrompt}". Use the provided pose image as a visual reference for the body position.
 - **Background**: Place the model in the provided scene. If a solid color background is provided, use that instead.
 - **Accessories**: Add the following accessories to the model: ${params.accessories.map(a => a.name).join(', ') || 'none'}. Place them appropriately (e.g., sunglasses on face, handbag in hand).
 - **Style**: The final image should be high-fashion, with professional lighting and a cohesive look.`;
@@ -159,6 +163,10 @@ export const generateProductShot = async (params: CompositionParams): Promise<{ 
         prompt += ` The background should be a solid color: ${params.sceneColor}.`;
     }
     
+    if (params.negativePrompt) {
+        prompt += `\n- **Negative Prompt**: The final image MUST NOT contain any of the following elements: ${params.negativePrompt}.`;
+    }
+
     if (params.referenceImageUrl) {
         prompt += `\n- **IMPORTANT CONSISTENCY INSTRUCTION**: Use the provided Reference Image to ensure the model's face and body identity are an exact match. Ignore the clothing and pose in the reference image; only use it to maintain the model's personal identity.`;
     }
@@ -172,11 +180,14 @@ export const generateProductShot = async (params: CompositionParams): Promise<{ 
         { text: prompt },
         { text: "Model Image:" },
         await imageToPart(params.model.imageUrl),
-        { text: "Clothing Image:" },
-        await imageToPart(params.product.imageUrl),
         { text: "Pose Reference:" },
         await imageToPart(params.pose.imageUrl),
     ];
+
+    for (const product of params.products) {
+        parts.push({ text: `Clothing Item: ${product.name}` });
+        parts.push(await imageToPart(product.imageUrl));
+    }
 
     if (params.scene) {
         parts.push({ text: "Scene Image:" });
@@ -306,7 +317,7 @@ export const pollVideoOperation = async (operation: any) => {
  * @returns A promise that resolves to an array of suggestions.
  */
 export const getStylingSuggestions = async (catalogues: { products: Product[], models: Model[], scenes: Scene[], accessories: Accessory[] }) => {
-    const prompt = `You are an expert fashion stylist. Based on the following available assets, suggest three distinct and creative outfits. Provide your response as a valid JSON array.
+    const prompt = `You are an expert fashion stylist. Based on the following available assets, suggest three distinct and creative outfits. Suggest 1 or 2 clothing items per look, layering them if appropriate. Provide your response as a valid JSON array.
 
     Available Products: ${JSON.stringify(catalogues.products.map(p => p.name))}
     Available Models: ${JSON.stringify(catalogues.models.map(m => m.name))}
@@ -320,12 +331,12 @@ export const getStylingSuggestions = async (catalogues: { products: Product[], m
           type: Type.OBJECT,
           properties: {
             description: { type: Type.STRING, description: "A short, creative description of the look's style." },
-            productName: { type: Type.STRING, description: "The name of the main clothing product." },
+            productNames: { type: Type.ARRAY, items: { type: Type.STRING }, description: "A list of product names for this look." },
             modelName: { type: Type.STRING, description: "The name of the model for this look." },
             sceneName: { type: Type.STRING, description: "The name of the scene for this look." },
             accessoryNames: { type: Type.ARRAY, items: { type: Type.STRING }, description: "A list of accessory names for this look. Can be empty." }
           },
-          required: ['description', 'productName', 'modelName', 'sceneName', 'accessoryNames']
+          required: ['description', 'productNames', 'modelName', 'sceneName', 'accessoryNames']
         }
     };
     

@@ -14,6 +14,7 @@ import AccessorySelector from './components/AccessorySelector';
 import PoseSelector from './components/PoseSelector';
 import Spinner from './components/Spinner';
 import Tooltip from './components/Tooltip';
+import HoverCard from './components/HoverCard';
 
 import { INITIAL_PRODUCTS, INITIAL_MODELS, INITIAL_SCENES, INITIAL_ACCESSORIES, INITIAL_POSES } from './data';
 import { Product, Model, Scene, Accessory, Pose, GeneratedResult, GenerationState, StylistSuggestion, Collection } from './types';
@@ -43,18 +44,22 @@ const App: React.FC = () => {
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedAccessories, setSelectedAccessories] = useState<Accessory[]>([]);
   const [selectedPose, setSelectedPose] = useState<Pose | null>(poses[0]);
+  const [customPosePrompt, setCustomPosePrompt] = useState<string>(
+    INITIAL_POSES.find(p => p.name === 'Custom')?.prompt || 'A dynamic, high-fashion pose.'
+  );
 
   // Generation
   const [generationState, setGenerationState] = useState<GenerationState>('idle');
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [generatedResult, setGeneratedResult] = useState<GeneratedResult | null>(null);
+  const [generatedResult, setGeneratedResult] = useState<GeneratedResult[] | null>(null);
   const [videoDescription, setVideoDescription] = useState<string>('');
+  const [negativePrompt, setNegativePrompt] = useState<string>('');
   
   // App Features
   const [stylistSuggestions, setStylistSuggestions] = useState<StylistSuggestion[]>([]);
   const [isStylistLoading, setIsStylistLoading] = useState(false);
   const [lookbook, setLookbook] = useState<Collection[]>([]);
-  const [referenceImageUrlForConsistency, setReferenceImageUrlForConsistency] = useState<string | null>(null);
+  const [lockedCharacterImage, setLockedCharacterImage] = useState<string | null>(null);
   
   const isGenerateDisabled = useMemo(() => {
     return selectedProducts.length === 0 || selectedModels.length === 0 || !selectedPose || (!selectedScene && !selectedColor) || (generationState !== 'idle' && generationState !== 'success' && generationState !== 'error');
@@ -70,7 +75,9 @@ const App: React.FC = () => {
     setGeneratedResult(null);
     setGenerationState('idle');
     setGenerationError(null);
-    setReferenceImageUrlForConsistency(null);
+    setLockedCharacterImage(null);
+    setCustomPosePrompt(INITIAL_POSES.find(p => p.name === 'Custom')?.prompt || 'A dynamic, high-fashion pose.');
+    setNegativePrompt('');
   }, [poses]);
 
   // File to Data URL converter
@@ -111,7 +118,9 @@ const App: React.FC = () => {
           setModels(prev => [...prev, { id: Date.now(), name: file.name, imageUrl: result.imageUrl, isCustom: true }]);
       } catch (error) {
           console.error("Failed to process model image:", error);
-          setGenerationError(error instanceof Error ? error.message : "Failed to process model image.");
+          const message = error instanceof Error ? error.message : "Failed to process model image.";
+          setGenerationError(message);
+          throw new Error(message);
       }
   };
 
@@ -140,8 +149,8 @@ const App: React.FC = () => {
     });
   };
 
-  const handleSelectProduct = createToggleHandler(setSelectedProducts, true);
-  const handleSelectModel = createToggleHandler(setSelectedModels, true);
+  const handleSelectProduct = createToggleHandler(setSelectedProducts, false);
+  const handleSelectModel = createToggleHandler(setSelectedModels, false);
   const handleSelectAccessory = createToggleHandler(setSelectedAccessories, false);
 
   const handleSelectScene = (scene: Scene) => {
@@ -173,58 +182,71 @@ const App: React.FC = () => {
 
   const applySuggestion = (suggestion: StylistSuggestion) => {
     resetSelections();
-    const product = products.find(p => p.name === suggestion.productName);
+    const productsToSelect = products.filter(p => suggestion.productNames.includes(p.name));
     const model = models.find(m => m.name === suggestion.modelName);
     const scene = scenes.find(s => s.name === suggestion.sceneName);
     const selectedAccessories = accessories.filter(a => suggestion.accessoryNames.includes(a.name));
 
-    if (product) setSelectedProducts([product]);
-    if (model) {
-      setSelectedModels([model]);
-      setReferenceImageUrlForConsistency(model.imageUrl);
-    }
+    if (productsToSelect.length > 0) setSelectedProducts(productsToSelect);
+    if (model) setSelectedModels([model]);
     if (scene) setSelectedScene(scene);
     setSelectedAccessories(selectedAccessories);
   };
-  
+
   // Main generation flow
   const handleGenerate = useCallback(async () => {
     if (isGenerateDisabled || selectedProducts.length === 0 || selectedModels.length === 0 || !selectedPose) return;
-
+    
     setGenerationState('loading-image');
     setGenerationError(null);
-    setGeneratedResult(null);
+    setGeneratedResult([]); // Initialize as an empty array for progressive loading
 
-    const params = {
-      product: selectedProducts[0],
-      model: selectedModels[0],
-      scene: selectedScene,
-      sceneColor: selectedColor,
-      pose: selectedPose,
-      accessories: selectedAccessories,
-      referenceImageUrl: referenceImageUrlForConsistency,
-    };
-    
+    const isMultiModel = selectedModels.length > 1;
+
     try {
-      // 1. Generate Product Shot
-      const result = await generateProductShot(params);
-      setGeneratedResult({ image: result.imageUrl });
-      
-      // 2. Create Cutout (in parallel)
-      setGenerationState('loading-cutout');
-      createProductCutout(result.imageUrl).then(cutoutResult => {
-        setGeneratedResult(prev => ({ ...prev, cutoutImage: cutoutResult.imageUrl }));
-      }).catch(err => console.error("Cutout failed:", err)); // Non-blocking failure
+      const generationPromises = selectedModels.map(model => {
+        const params = {
+          products: selectedProducts,
+          model: model,
+          scene: selectedScene,
+          sceneColor: selectedColor,
+          pose: selectedPose,
+          customPosePrompt: selectedPose?.name === 'Custom' ? customPosePrompt : undefined,
+          accessories: selectedAccessories,
+          referenceImageUrl: lockedCharacterImage,
+          negativePrompt: negativePrompt,
+        };
+        return generateProductShot(params).then(result => {
+          const newResult: GeneratedResult = { image: result.imageUrl, model: model };
+          setGeneratedResult(prev => [...(prev || []), newResult]);
+          return newResult;
+        });
+      });
 
-      // 3. Generate Video Description
-      setGenerationState('loading-video-description');
-      const description = await generateDescriptionForVideo(result.imageUrl);
-      setVideoDescription(description);
+      const results = await Promise.all(generationPromises);
 
-      // 4. Generate Video
-      setGenerationState('loading-video');
-      const videoOperation = await generateRunwayVideo(result.imageUrl, description);
-      setGeneratedResult(prev => ({ ...prev, videoOperation: videoOperation }));
+      // Video generation only for single model mode
+      if (!isMultiModel && results.length > 0) {
+        const firstResult = results[0];
+        
+        // Create Cutout
+        setGenerationState('loading-cutout');
+        createProductCutout(firstResult.image!).then(cutoutResult => {
+            setGeneratedResult(prev => prev ? [{ ...prev[0], cutoutImage: cutoutResult.imageUrl }] : null);
+        }).catch(err => console.error("Cutout failed:", err)); // Non-blocking failure
+
+        // Generate Video Description
+        setGenerationState('loading-video-description');
+        const description = await generateDescriptionForVideo(firstResult.image!);
+        setVideoDescription(description);
+
+        // Generate Video
+        setGenerationState('loading-video');
+        const videoOperation = await generateRunwayVideo(firstResult.image!, description);
+        setGeneratedResult(prev => prev ? [{ ...prev[0], videoOperation: videoOperation }] : null);
+      } else {
+        setGenerationState('success');
+      }
 
     } catch (error) {
       console.error("Generation failed:", error);
@@ -232,25 +254,28 @@ const App: React.FC = () => {
       setGenerationError(errorMessage);
       setGenerationState('error');
     }
-  }, [isGenerateDisabled, selectedProducts, selectedModels, selectedScene, selectedColor, selectedPose, selectedAccessories, referenceImageUrlForConsistency]);
+  }, [isGenerateDisabled, selectedProducts, selectedModels, selectedScene, selectedColor, selectedPose, customPosePrompt, selectedAccessories, lockedCharacterImage, negativePrompt]);
+
 
   // Poll for video result
   useEffect(() => {
-    if (generationState === 'loading-video' && generatedResult?.videoOperation && !generatedResult.videoOperation.done) {
+    if (generationState === 'loading-video' && generatedResult && generatedResult.length > 0 && generatedResult[0].videoOperation && !generatedResult[0].videoOperation.done) {
       const interval = setInterval(async () => {
         try {
-          const operation = await pollVideoOperation(generatedResult.videoOperation);
-          setGeneratedResult(prev => ({...prev!, videoOperation: operation}));
+          const operation = await pollVideoOperation(generatedResult[0].videoOperation);
+          
           if (operation.done) {
             clearInterval(interval);
             const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
             if (videoUri) {
               const videoUrl = `${videoUri}&key=${process.env.API_KEY}`;
-              setGeneratedResult(prev => ({ ...prev!, video: videoUrl }));
+              setGeneratedResult(prev => prev ? [{ ...prev[0], video: videoUrl, videoOperation: operation }] : null);
               setGenerationState('success');
             } else {
               throw new Error("Video generation completed, but no video URI was found.");
             }
+          } else {
+             setGeneratedResult(prev => prev ? [{ ...prev[0], videoOperation: operation }] : null);
           }
         } catch (error) {
           console.error("Video polling failed:", error);
@@ -263,17 +288,17 @@ const App: React.FC = () => {
 
       return () => clearInterval(interval);
     }
-  }, [generationState, generatedResult?.videoOperation]);
+  }, [generationState, generatedResult]);
 
   const saveToLookbook = () => {
-    if (!generatedResult || !selectedProducts[0] || !selectedModels[0] || !selectedPose) return;
+    if (!generatedResult || selectedProducts.length === 0 || selectedModels.length === 0 || !selectedPose) return;
     const newCollection: Collection = {
       id: Date.now(),
       timestamp: new Date(),
       result: generatedResult,
       selections: {
-        product: selectedProducts[0],
-        model: selectedModels[0],
+        products: selectedProducts,
+        models: selectedModels,
         scene: selectedScene,
         color: selectedColor,
         accessories: selectedAccessories,
@@ -284,8 +309,8 @@ const App: React.FC = () => {
   };
   
   const loadFromLookbook = (collection: Collection) => {
-    setSelectedProducts(collection.selections.product ? [collection.selections.product] : []);
-    setSelectedModels(collection.selections.model ? [collection.selections.model] : []);
+    setSelectedProducts(collection.selections.products || []);
+    setSelectedModels(collection.selections.models || []);
     setSelectedScene(collection.selections.scene);
     setSelectedColor(collection.selections.color);
     setSelectedAccessories(collection.selections.accessories);
@@ -296,7 +321,7 @@ const App: React.FC = () => {
 
   const getGenerationMessage = () => {
     switch (generationState) {
-      case 'loading-image': return 'Generating product shot...';
+      case 'loading-image': return selectedModels.length > 1 ? `Generating ${selectedModels.length} product shots...` : 'Generating product shot...';
       case 'loading-cutout': return 'Creating transparent cutout...';
       case 'loading-video-description': return 'Analyzing image for video...';
       case 'loading-video': return 'Generating runway video... This may take a few minutes.';
@@ -305,6 +330,16 @@ const App: React.FC = () => {
       default: return '';
     }
   };
+
+  const getButtonText = () => {
+    if (generationState !== 'idle' && generationState !== 'success' && generationState !== 'error') {
+      return 'Generating...';
+    }
+    if (selectedModels.length > 1) {
+      return 'Generate Catalogue Shots';
+    }
+    return 'Generate Product Shot & Video';
+  }
 
   return (
     <div className="bg-zinc-50 min-h-screen font-sans text-zinc-800">
@@ -327,14 +362,47 @@ const App: React.FC = () => {
                 {isStylistLoading ? <div className="text-center p-4"><Spinner /></div> : (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {stylistSuggestions.slice(0,3).map((s, i) => (
-                            <button key={i} onClick={() => applySuggestion(s)} className="p-3 bg-zinc-100 rounded-lg text-left hover:bg-zinc-200 transition-colors text-sm">
-                                <p className="font-bold truncate">{s.description}</p>
-                                <p className="text-zinc-600 truncate">{s.productName}</p>
-                            </button>
+                           <HoverCard
+                              key={i}
+                              trigger={
+                                <button onClick={() => applySuggestion(s)} className="p-3 bg-zinc-100 rounded-lg text-left hover:bg-zinc-200 transition-colors text-sm w-full h-full">
+                                    <p className="font-bold truncate">{s.description}</p>
+                                    <p className="text-zinc-600 truncate">{s.productNames.join(', ')}</p>
+                                </button>
+                              }
+                              content={
+                                <div className="p-4">
+                                  <h4 className="font-bold text-zinc-900 mb-2">{s.description}</h4>
+                                  <div className="text-sm text-zinc-600 space-y-1 text-left">
+                                      <p><strong>Products:</strong> {s.productNames.join(', ')}</p>
+                                      <p><strong>Model:</strong> {s.modelName}</p>
+                                      <p><strong>Scene:</strong> {s.sceneName}</p>
+                                      <p><strong>Accessories:</strong> {s.accessoryNames.join(', ') || 'None'}</p>
+                                  </div>
+                                </div>
+                              }
+                           />
                         ))}
                     </div>
                 )}
             </div>
+            
+            {lockedCharacterImage && (
+              <div className="bg-white p-4 rounded-lg border border-green-300 shadow-sm ring-2 ring-green-100">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <img src={lockedCharacterImage} alt="Locked character reference" className="w-16 h-16 rounded-md object-cover" />
+                      <div>
+                        <h3 className="font-bold text-green-700">Character Locked</h3>
+                        <p className="text-sm text-zinc-600">This model's appearance will be kept consistent.</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setLockedCharacterImage(null)} className="text-zinc-500 hover:text-zinc-800 font-semibold text-sm">
+                      Unlock
+                    </button>
+                </div>
+              </div>
+            )}
 
             <h2 className="text-2xl font-bold text-center text-zinc-600">OR</h2>
             
@@ -362,7 +430,7 @@ const App: React.FC = () => {
             </section>
 
              <section id="pose-selection">
-               <PoseSelector poses={poses} selectedPose={selectedPose} onSelectPose={setSelectedPose} />
+               <PoseSelector poses={poses} selectedPose={selectedPose} onSelectPose={setSelectedPose} customPosePrompt={customPosePrompt} onCustomPosePromptChange={setCustomPosePrompt} />
             </section>
 
              <section id="accessory-selection">
@@ -370,6 +438,24 @@ const App: React.FC = () => {
                   <span className="bg-zinc-800 text-white rounded-full h-8 w-8 text-sm font-bold flex items-center justify-center mr-3">5</span> Add Accessories (Optional)
                 </h3>
                <AccessorySelector accessories={accessories} selectedAccessories={selectedAccessories} onSelectAccessory={handleSelectAccessory} onAddAccessory={addAccessory} onDeleteAccessory={deleteAccessory} onAccessoryCreated={accessoryCreated} />
+            </section>
+
+            <section id="advanced-controls" className="space-y-2">
+                <h3 className="text-lg font-semibold text-zinc-800">Advanced Controls (Optional)</h3>
+                <div className="bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
+                    <label htmlFor="negative-prompt" className="block text-sm font-semibold text-zinc-700 mb-1">
+                        Negative Prompt
+                    </label>
+                    <p className="text-xs text-zinc-500 mb-2">Describe elements you want to avoid in the final image.</p>
+                    <textarea
+                        id="negative-prompt"
+                        value={negativePrompt}
+                        onChange={(e) => setNegativePrompt(e.target.value)}
+                        placeholder="e.g., text, logos, watermarks, distorted hands, blurry"
+                        className="w-full p-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        rows={2}
+                    />
+                </div>
             </section>
           </div>
           
@@ -381,7 +467,7 @@ const App: React.FC = () => {
                     disabled={isGenerateDisabled}
                     className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-all disabled:bg-zinc-300 disabled:cursor-not-allowed hover:enabled:bg-blue-700 hover:enabled:shadow-lg"
                 >
-                    {generationState !== 'idle' && generationState !== 'success' && generationState !== 'error' ? 'Generating...' : 'Generate Product Shot & Video'}
+                    {getButtonText()}
                 </button>
             </div>
 
@@ -393,7 +479,7 @@ const App: React.FC = () => {
                 </div>
               )}
               
-              {(generationState !== 'idle' && generationState !== 'success') && (
+              {(generationState !== 'idle' && generationState !== 'success' && generationState !== 'error') && (
                 <div className="space-y-4">
                   <Spinner />
                   <p className="font-semibold text-lg text-zinc-700">{getGenerationMessage()}</p>
@@ -408,18 +494,41 @@ const App: React.FC = () => {
                  </div>
               )}
 
-              {generatedResult && (
+              {generatedResult && generatedResult.length > 0 && (
                  <div className="w-full space-y-4">
-                    {generatedResult.video ? (
-                        <video src={generatedResult.video} controls autoPlay loop muted className="w-full rounded-md" />
-                    ) : generatedResult.image ? (
-                        <img src={generatedResult.image} alt="Generated product shot" className="w-full rounded-md" />
-                    ) : null}
+                    {/* Multi-model view */}
+                    {selectedModels.length > 1 ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        {generatedResult.map((result, index) => (
+                           <div key={index} className="space-y-2">
+                             <img src={result.image} alt={`Generated shot for ${result.model.name}`} className="w-full rounded-md" />
+                             <p className="text-sm font-semibold">{result.model.name}</p>
+                           </div>
+                        ))}
+                      </div>
+                    ) : (
+                      // Single model view
+                      <div>
+                        {generatedResult[0].video ? (
+                            <video src={generatedResult[0].video} controls autoPlay loop muted className="w-full rounded-md" />
+                        ) : generatedResult[0].image ? (
+                            <img src={generatedResult[0].image} alt="Generated product shot" className="w-full rounded-md" />
+                        ) : null}
+                      </div>
+                    )}
                     
                     {generationState === 'success' && (
-                        <div className="flex gap-2">
-                           <button onClick={saveToLookbook} className="flex-1 bg-zinc-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-zinc-900">Save to Lookbook</button>
-                           {generatedResult.cutoutImage && <a href={generatedResult.cutoutImage} download="cutout.png" className="flex-1 block text-center bg-zinc-200 text-zinc-800 font-bold py-2 px-4 rounded-lg hover:bg-zinc-300">Download Cutout</a>}
+                        <div className="flex flex-wrap gap-2">
+                           <button onClick={saveToLookbook} className="flex-grow bg-zinc-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-zinc-900">Save to Lookbook</button>
+                           {generatedResult.length === 1 && generatedResult[0].image && (
+                            <button 
+                              onClick={() => setLockedCharacterImage(generatedResult[0].image!)} 
+                              className="flex-grow bg-zinc-200 text-zinc-800 font-bold py-2 px-4 rounded-lg hover:bg-zinc-300"
+                            >
+                              Use as Character Reference
+                            </button>
+                           )}
+                           {generatedResult.length === 1 && generatedResult[0].cutoutImage && <a href={generatedResult[0].cutoutImage} download="cutout.png" className="flex-grow block text-center bg-zinc-200 text-zinc-800 font-bold py-2 px-4 rounded-lg hover:bg-zinc-300">Download Cutout</a>}
                         </div>
                     )}
                  </div>
@@ -432,7 +541,7 @@ const App: React.FC = () => {
                     <div className="grid grid-cols-3 gap-3">
                         {lookbook.map(collection => (
                             <button key={collection.id} onClick={() => loadFromLookbook(collection)} className="aspect-square rounded-md overflow-hidden hover:scale-105 transition-transform">
-                                <img src={collection.result.image} alt={`Look created at ${collection.timestamp.toLocaleString()}`} className="w-full h-full object-cover"/>
+                                <img src={collection.result[0].image} alt={`Look created at ${collection.timestamp.toLocaleString()}`} className="w-full h-full object-cover"/>
                             </button>
                         ))}
                     </div>

@@ -24,8 +24,8 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text, position = 'top' }) =
       {children}
       <div 
         className={`
-          absolute z-10 px-2 py-1 text-xs font-semibold text-white bg-zinc-800 rounded-md shadow-lg
-          whitespace-nowrap
+          absolute z-10 px-3 py-2 text-xs font-semibold text-white bg-zinc-800 rounded-md shadow-lg
+          whitespace-pre-line text-left max-w-xs
           invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity
           ${positionClasses[position]}
         `}

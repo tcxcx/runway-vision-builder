@@ -68,7 +68,7 @@ const ProductSelector: React.FC<ProductSelectorProps> = ({ products, selectedPro
         type="file"
         ref={fileInputRef}
         onChange={handleFileSelected}
-        accept="image/png, image/jpeg"
+        accept="image/png, image/jpeg, image/webp"
         className="hidden"
       />
       <div className="flex gap-2 p-1 bg-zinc-100 rounded-lg mb-4">

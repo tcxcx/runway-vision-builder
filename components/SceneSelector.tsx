@@ -79,7 +79,7 @@ const SceneSelector: React.FC<SceneSelectorProps> = ({
 
   return (
     <div className="w-full bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
-       <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept="image/png, image/jpeg" className="hidden" />
+       <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept="image/png, image/jpeg, image/webp" className="hidden" />
       <div className="flex gap-2 p-1 bg-zinc-100 rounded-lg mb-4">
         <TabButton label="Catalogue" isActive={activeTab === 'catalogue'} onClick={() => setActiveTab('catalogue')} />
         <TabButton label="Create with AI" isActive={activeTab === 'create'} onClick={() => setActiveTab('create')} />
@@ -89,8 +89,9 @@ const SceneSelector: React.FC<SceneSelectorProps> = ({
       {activeTab === 'catalogue' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
            <div 
+            onClick={() => onColorChange(selectedColor || '#ffffff')}
             className={`
-              relative bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300
+              relative bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-xl hover:scale-105
               ${selectedColor ? 'border-2 border-blue-500 shadow-xl scale-105' : 'border border-zinc-200'}
             `}
           >
@@ -101,6 +102,7 @@ const SceneSelector: React.FC<SceneSelectorProps> = ({
                       type="color" 
                       value={selectedColor || '#ffffff'} 
                       onChange={(e) => onColorChange(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
                       className="color-picker-swatch"
                   />
               </div>
@@ -114,7 +116,7 @@ const SceneSelector: React.FC<SceneSelectorProps> = ({
             <ObjectCard
               key={scene.id}
               item={scene} 
-              isSelected={selectedScene?.id === scene.id && !selectedColor}
+              isSelected={selectedScene?.id === scene.id}
               onClick={() => onSelectScene(scene)}
               onDelete={scene.isCustom ? onDeleteScene : undefined}
             />

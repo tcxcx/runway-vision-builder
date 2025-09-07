@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import ObjectCard from './ObjectCard';
 import TabButton from './TabButton';
 import Spinner from './Spinner';
+import CameraView from './CameraView';
 import { Model } from '../types';
 import { generateModel } from '../services/geminiService';
 
@@ -18,10 +19,24 @@ interface ModelSelectorProps {
   onSelectModel: (model: Model) => void;
   onModelCreated: (name: string, imageUrl: string) => void;
   onDeleteModel: (id: number) => void;
-  onUploadAndProcessModel: (file: File) => void;
+  onUploadAndProcessModel: (file: File) => Promise<void>;
 }
 
-type ActiveTab = 'catalogue' | 'create' | 'upload';
+type ActiveTab = 'catalogue' | 'create' | 'upload' | 'camera';
+
+const dataURLtoFile = (dataurl: string, filename: string): File => {
+    const arr = dataurl.split(',');
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    if (!mimeMatch) throw new Error('Invalid data URL');
+    const mime = mimeMatch[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, {type:mime});
+};
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, onSelectModel, onModelCreated, onDeleteModel, onUploadAndProcessModel }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('catalogue');
@@ -30,6 +45,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, o
   const [error, setError] = useState<string | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingError, setProcessingError] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleGenerate = async () => {
@@ -59,22 +78,57 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, o
       setActiveTab('catalogue');
     }
   };
+  
+  const processFile = async (file: File) => {
+      setIsProcessing(true);
+      setProcessingError(null);
+      try {
+        await onUploadAndProcessModel(file);
+        setActiveTab('catalogue');
+        setCapturedImage(null);
+      } catch (err) {
+        setProcessingError(err instanceof Error ? err.message : "An unknown error occurred during processing.");
+      } finally {
+        setIsProcessing(false);
+      }
+  };
 
-  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      onUploadAndProcessModel(file);
-      setActiveTab('catalogue');
+      await processFile(file);
     }
+  };
+
+  const triggerFileUpload = () => {
+    setProcessingError(null);
+    fileInputRef.current?.click();
+  };
+
+  const handleCapture = (dataUrl: string) => {
+    setCapturedImage(dataUrl);
+  };
+    
+  const handleRetake = () => {
+      setCapturedImage(null);
+      setProcessingError(null);
+  };
+
+  const handleUsePhoto = () => {
+      if (capturedImage) {
+          const file = dataURLtoFile(capturedImage, `model-capture-${Date.now()}.jpg`);
+          processFile(file);
+      }
   };
 
   return (
     <div className="w-full bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
-      <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept="image/png, image/jpeg" className="hidden" />
+      <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept="image/png, image/jpeg, image/webp" className="hidden" />
       <div className="flex gap-2 p-1 bg-zinc-100 rounded-lg mb-4">
         <TabButton label="Catalogue" isActive={activeTab === 'catalogue'} onClick={() => setActiveTab('catalogue')} />
         <TabButton label="Create with AI" isActive={activeTab === 'create'} onClick={() => setActiveTab('create')} />
-        <TabButton label="Upload Image" isActive={activeTab === 'upload'} onClick={() => fileInputRef.current?.click()} />
+        <TabButton label="Upload Image" isActive={activeTab === 'upload'} onClick={() => setActiveTab('upload')} />
+        <TabButton label="Become the Model" isActive={activeTab === 'camera'} onClick={() => setActiveTab('camera')} />
       </div>
 
       {activeTab === 'catalogue' && (
@@ -122,6 +176,41 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, o
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'upload' && (
+        <div className="space-y-4 text-center p-8 border-2 border-dashed border-zinc-300 rounded-lg">
+          <h4 className="text-lg font-semibold">Upload Your Own Model</h4>
+          <p className="text-sm text-zinc-500 max-w-md mx-auto">
+              Upload a photo of a person. Our AI will prepare it to be used as a fashion model by isolating them and placing them on a neutral background.
+          </p>
+          <button
+              onClick={triggerFileUpload}
+              disabled={isProcessing}
+              className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-zinc-400"
+          >
+              {isProcessing ? 'Processing...' : 'Choose an Image'}
+          </button>
+          {isProcessing && <div className="pt-4"><Spinner /></div>}
+          {processingError && <p className="text-red-600 text-sm mt-2">{processingError}</p>}
+        </div>
+      )}
+
+      {activeTab === 'camera' && (
+        <div className="space-y-4 text-center p-4">
+            <h4 className="text-lg font-semibold">Become the Model</h4>
+            <p className="text-sm text-zinc-500 max-w-md mx-auto">
+                Use your camera to take a photo. Our AI will turn it into a professional model shot you can use for virtual try-ons.
+            </p>
+            <CameraView 
+                onCapture={handleCapture}
+                isProcessing={isProcessing}
+                processingError={processingError}
+                capturedImage={capturedImage}
+                onRetake={handleRetake}
+                onUsePhoto={handleUsePhoto}
+            />
         </div>
       )}
     </div>

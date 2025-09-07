@@ -1,6 +1,8 @@
 {
   "name": "Fashion Catwalk Model Vision",
   "description": "AI-powered fashion shows at your fingertips.\n\nVisionRunway transforms clothing images into immersive fashion experiences. Upload your designs, pick your model, and watch your collection come alive in a virtual runway show. Perfect for e-commerce, fashion weeks, and digital creators.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": [
+    "camera"
+  ],
   "prompt": ""
 }

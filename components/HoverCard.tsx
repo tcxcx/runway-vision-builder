@@ -55,7 +55,7 @@ const HoverCard: React.FC<HoverCardProps> = ({
       {trigger}
       <div 
         className={`
-          absolute z-50 w-64 rounded-lg border border-zinc-200 bg-white text-zinc-800 shadow-xl
+          absolute z-50 w-64 rounded-lg border border-[var(--border-secondary)] bg-[var(--background-tertiary)] text-[var(--text-primary)] shadow-xl
           transition-opacity duration-200
           bottom-full left-1/2 -translate-x-1/2 mb-2
           ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}

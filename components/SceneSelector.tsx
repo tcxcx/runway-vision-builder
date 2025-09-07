@@ -78,38 +78,36 @@ const SceneSelector: React.FC<SceneSelectorProps> = ({
   };
 
   return (
-    <div className="w-full bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
+    <div className="w-full">
        <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept="image/png, image/jpeg, image/webp" className="hidden" />
-      <div className="flex gap-2 p-1 bg-zinc-100 rounded-lg mb-4">
+      <div className="flex border-b border-[var(--border-secondary)] mb-4">
         <TabButton label="Catalogue" isActive={activeTab === 'catalogue'} onClick={() => setActiveTab('catalogue')} />
         <TabButton label="Create with AI" isActive={activeTab === 'create'} onClick={() => setActiveTab('create')} />
-        <TabButton label="Upload Image" isActive={activeTab === 'upload'} onClick={() => fileInputRef.current?.click()} />
+        <TabButton label="Upload" isActive={activeTab === 'upload'} onClick={() => fileInputRef.current?.click()} />
       </div>
 
       {activeTab === 'catalogue' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
            <div 
-            onClick={() => onColorChange(selectedColor || '#ffffff')}
+            onClick={() => onColorChange(selectedColor || '#1A1A1A')}
             className={`
-              relative bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-xl hover:scale-105
-              ${selectedColor ? 'border-2 border-blue-500 shadow-xl scale-105' : 'border border-zinc-200'}
+              relative bg-[var(--background-tertiary)] rounded-lg overflow-hidden transition-all duration-200 border-2 cursor-pointer
+              ${selectedColor ? 'border-[var(--accent-blue)] scale-105 shadow-[0_0_15px_var(--shadow-blue)]' : 'border-transparent hover:border-[var(--accent-magenta)] hover:scale-105 hover:shadow-[0_0_15px_var(--shadow-magenta)]'}
             `}
           >
-            <label htmlFor="color-picker" className="cursor-pointer">
-              <div className="aspect-square w-full bg-zinc-100 flex items-center justify-center">
-                  <input 
-                      id="color-picker"
-                      type="color" 
-                      value={selectedColor || '#ffffff'} 
-                      onChange={(e) => onColorChange(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="color-picker-swatch"
-                  />
-              </div>
-              <div className="p-3 text-center">
-                  <h4 className="text-sm font-semibold text-zinc-700 truncate">Solid Color</h4>
-              </div>
-            </label>
+            <div className="aspect-square w-full bg-[var(--background-secondary)] flex items-center justify-center p-2">
+                <input 
+                    type="color" 
+                    value={selectedColor || '#1A1A1A'} 
+                    onChange={(e) => onColorChange(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="color-picker-swatch"
+                    aria-label="Select a solid color background"
+                />
+            </div>
+            <div className="p-3 text-center bg-[var(--background-tertiary)]">
+                <h4 className="text-sm font-semibold text-[var(--text-primary)] truncate">Solid Color</h4>
+            </div>
           </div>
 
           {scenes.map((scene) => (
@@ -130,26 +128,26 @@ const SceneSelector: React.FC<SceneSelectorProps> = ({
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="e.g., a futuristic neon-lit city street"
-            className="w-full p-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-2 bg-[var(--background-secondary)] border border-[var(--border-tertiary)] rounded-md focus:ring-2 focus:ring-[var(--accent-blue)] focus:border-[var(--accent-blue)] text-[var(--text-primary)]"
             rows={3}
           />
           <button
             onClick={handleGenerate}
             disabled={isLoading || !prompt}
-            className="w-full bg-zinc-800 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-zinc-300 hover:enabled:bg-zinc-900"
+            className="w-full bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-[var(--disabled-bg)] disabled:text-[var(--disabled-text)] hover:enabled:bg-white"
           >
             {isLoading ? 'Generating...' : 'Generate'}
           </button>
           
           {isLoading && <Spinner />}
-          {error && <p className="text-red-600 text-sm text-center">{error}</p>}
+          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
           
           {generatedImageUrl && (
             <div className="space-y-2 text-center">
-              <img src={generatedImageUrl} alt="Generated scene" className="w-full aspect-video object-cover rounded-md border" />
+              <img src={generatedImageUrl} alt="Generated scene" className="w-full aspect-video object-cover rounded-md border border-[var(--border-secondary)]" />
               <button
                 onClick={handleSaveGenerated}
-                className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"
+                className="w-full bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-white"
               >
                 Save to Catalogue
               </button>

@@ -15,7 +15,17 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
  * Helper function to convert an image URL to a base64 encoded string for the Gemini API.
  */
 const imageUrlToBase64 = async (imageUrl: string): Promise<{ base64: string, mimeType: string }> => {
-    const response = await fetch(imageUrl);
+    // Use a CORS proxy for external http/https URLs to prevent "Failed to fetch" errors caused by CORS policies.
+    // Data URLs are local and can be fetched directly.
+    const fetchUrl = imageUrl.startsWith('data:') ? imageUrl : `https://corsproxy.io/?${encodeURIComponent(imageUrl)}`;
+    
+    const response = await fetch(fetchUrl);
+    
+    if (!response.ok) {
+        // Provide a more detailed error message if the fetch fails.
+        throw new Error(`Failed to fetch image from ${imageUrl}. Status: ${response.status} ${response.statusText}`);
+    }
+
     const blob = await response.blob();
     const reader = new FileReader();
     return new Promise((resolve, reject) => {

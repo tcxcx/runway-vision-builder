@@ -18,12 +18,9 @@ interface PoseSelectorProps {
 
 const PoseSelector: React.FC<PoseSelectorProps> = ({ poses, selectedPose, onSelectPose, customPosePrompt, onCustomPosePromptChange }) => {
   return (
-    <div className="w-full bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
-      <h3 className="text-lg font-semibold text-zinc-800 mb-4 flex items-center">
-        <span className="bg-zinc-800 text-white rounded-full h-8 w-8 text-sm font-bold flex items-center justify-center mr-3">4</span>
-        Select Pose
-      </h3>
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+    <div>
+      <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">5. Select Pose</h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {poses.map((pose) => (
           <HoverCard
             key={pose.id}
@@ -31,22 +28,21 @@ const PoseSelector: React.FC<PoseSelectorProps> = ({ poses, selectedPose, onSele
               <div
                 onClick={() => onSelectPose(pose)}
                 className={`
-                  relative bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer h-full
-                  hover:shadow-xl hover:scale-105
-                  ${selectedPose?.id === pose.id ? 'border-2 border-blue-500 shadow-xl scale-105' : 'border border-zinc-200'}
+                  relative bg-[var(--background-tertiary)] rounded-lg overflow-hidden transition-all duration-200 border-2 cursor-pointer h-full
+                  ${selectedPose?.id === pose.id ? 'border-[var(--accent-blue)] scale-105 shadow-[0_0_15px_var(--shadow-blue)]' : 'border-transparent hover:border-[var(--accent-magenta)] hover:scale-105 hover:shadow-[0_0_15px_var(--shadow-magenta)]'}
                 `}
                 title={pose.name}
               >
-                <div className="aspect-square w-full bg-zinc-100 flex items-center justify-center p-2">
+                <div className="aspect-square w-full bg-[var(--background-secondary)] flex items-center justify-center p-2">
                   <img src={pose.imageUrl} alt={pose.name} className="w-full h-full object-contain" />
                 </div>
-                <div className="p-2 text-center bg-white">
-                  <h4 className="text-xs font-semibold text-zinc-700 truncate">{pose.name}</h4>
+                <div className="p-2 text-center bg-[var(--background-tertiary)]">
+                  <h4 className="text-xs font-semibold text-[var(--text-primary)] truncate">{pose.name}</h4>
                 </div>
               </div>
             }
             content={
-              <div className="p-3 text-sm text-zinc-600">
+              <div className="p-3 text-sm text-[var(--text-primary)]">
                 {pose.prompt}
               </div>
             }
@@ -55,7 +51,7 @@ const PoseSelector: React.FC<PoseSelectorProps> = ({ poses, selectedPose, onSele
       </div>
       {selectedPose?.name === 'Custom' && (
         <div className="mt-4">
-          <label htmlFor="custom-pose-prompt" className="block text-sm font-semibold text-zinc-700 mb-2">
+          <label htmlFor="custom-pose-prompt" className="block text-sm font-semibold text-[var(--text-primary)] mb-2">
             Custom Pose Prompt
           </label>
           <textarea
@@ -63,7 +59,7 @@ const PoseSelector: React.FC<PoseSelectorProps> = ({ poses, selectedPose, onSele
             value={customPosePrompt}
             onChange={(e) => onCustomPosePromptChange(e.target.value)}
             placeholder="e.g., jumping in the air with excitement"
-            className="w-full p-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-2 bg-[var(--background-secondary)] border border-[var(--border-tertiary)] rounded-md focus:ring-2 focus:ring-[var(--accent-blue)] focus:border-[var(--accent-blue)] text-[var(--text-primary)]"
             rows={3}
           />
         </div>

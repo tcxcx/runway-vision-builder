@@ -63,7 +63,7 @@ const AccessorySelector: React.FC<AccessorySelectorProps> = ({ accessories, sele
   };
 
   return (
-    <div className="w-full bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
+    <div className="w-full">
       <input
         type="file"
         ref={fileInputRef}
@@ -71,10 +71,10 @@ const AccessorySelector: React.FC<AccessorySelectorProps> = ({ accessories, sele
         accept="image/png, image/jpeg, image/webp"
         className="hidden"
       />
-      <div className="flex gap-2 p-1 bg-zinc-100 rounded-lg mb-4">
+      <div className="flex border-b border-[var(--border-secondary)] mb-4">
         <TabButton label="Catalogue" isActive={activeTab === 'catalogue'} onClick={() => setActiveTab('catalogue')} />
         <TabButton label="Create with AI" isActive={activeTab === 'create'} onClick={() => setActiveTab('create')} />
-        <TabButton label="Upload Image" isActive={activeTab === 'upload'} onClick={triggerFileUpload} />
+        <TabButton label="Upload" isActive={activeTab === 'upload'} onClick={triggerFileUpload} />
       </div>
 
       {activeTab === 'catalogue' && (
@@ -97,26 +97,26 @@ const AccessorySelector: React.FC<AccessorySelectorProps> = ({ accessories, sele
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="e.g., a pair of futuristic silver sunglasses"
-            className="w-full p-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-2 bg-[var(--background-secondary)] border border-[var(--border-tertiary)] rounded-md focus:ring-2 focus:ring-[var(--accent-blue)] focus:border-[var(--accent-blue)] text-[var(--text-primary)]"
             rows={3}
           />
           <button
             onClick={handleGenerate}
             disabled={isLoading || !prompt}
-            className="w-full bg-zinc-800 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-zinc-300 hover:enabled:bg-zinc-900"
+            className="w-full bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-[var(--disabled-bg)] disabled:text-[var(--disabled-text)] hover:enabled:bg-white"
           >
             {isLoading ? 'Generating...' : 'Generate'}
           </button>
           
           {isLoading && <Spinner />}
-          {error && <p className="text-red-600 text-sm text-center">{error}</p>}
+          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
           
           {generatedImageUrl && (
             <div className="space-y-2 text-center">
-              <img src={generatedImageUrl} alt="Generated accessory" className="w-full aspect-square object-contain rounded-md border bg-zinc-100" />
+              <img src={generatedImageUrl} alt="Generated accessory" className="w-full aspect-square object-contain rounded-md border border-[var(--border-secondary)] bg-[var(--background-primary)]" />
               <button
                 onClick={handleSaveGenerated}
-                className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"
+                className="w-full bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-white"
               >
                 Save to Catalogue
               </button>

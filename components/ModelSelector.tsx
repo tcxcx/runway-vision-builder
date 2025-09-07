@@ -122,12 +122,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, o
   };
 
   return (
-    <div className="w-full bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
+    <div className="w-full">
       <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept="image/png, image/jpeg, image/webp" className="hidden" />
-      <div className="flex gap-2 p-1 bg-zinc-100 rounded-lg mb-4">
+      <div className="flex border-b border-[var(--border-secondary)] mb-4">
         <TabButton label="Catalogue" isActive={activeTab === 'catalogue'} onClick={() => setActiveTab('catalogue')} />
         <TabButton label="Create with AI" isActive={activeTab === 'create'} onClick={() => setActiveTab('create')} />
-        <TabButton label="Upload Image" isActive={activeTab === 'upload'} onClick={() => setActiveTab('upload')} />
+        <TabButton label="Upload" isActive={activeTab === 'upload'} onClick={() => setActiveTab('upload')} />
         <TabButton label="Become the Model" isActive={activeTab === 'camera'} onClick={() => setActiveTab('camera')} />
       </div>
 
@@ -151,26 +151,26 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, o
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="e.g., a professional female fashion model with long blonde hair and blue eyes"
-            className="w-full p-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-2 bg-[var(--background-secondary)] border border-[var(--border-tertiary)] rounded-md focus:ring-2 focus:ring-[var(--accent-blue)] focus:border-[var(--accent-blue)] text-[var(--text-primary)]"
             rows={3}
           />
           <button
             onClick={handleGenerate}
             disabled={isLoading || !prompt}
-            className="w-full bg-zinc-800 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-zinc-300 hover:enabled:bg-zinc-900"
+            className="w-full bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-[var(--disabled-bg)] disabled:text-[var(--disabled-text)] hover:enabled:bg-white"
           >
             {isLoading ? 'Generating...' : 'Generate'}
           </button>
 
           {isLoading && <Spinner />}
-          {error && <p className="text-red-600 text-sm text-center">{error}</p>}
+          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
           {generatedImageUrl && (
             <div className="space-y-2 text-center">
-              <img src={generatedImageUrl} alt="Generated model" className="w-full aspect-[3/4] object-cover rounded-md border" />
+              <img src={generatedImageUrl} alt="Generated model" className="w-full aspect-[3/4] object-cover rounded-md border border-[var(--border-secondary)]" />
               <button
                 onClick={handleSaveGenerated}
-                className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"
+                className="w-full bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-white"
               >
                 Save to Catalogue
               </button>
@@ -180,28 +180,28 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, o
       )}
 
       {activeTab === 'upload' && (
-        <div className="space-y-4 text-center p-8 border-2 border-dashed border-zinc-300 rounded-lg">
+        <div className="space-y-4 text-center p-8 border-2 border-dashed border-[var(--border-secondary)] rounded-lg">
           <h4 className="text-lg font-semibold">Upload Your Own Model</h4>
-          <p className="text-sm text-zinc-500 max-w-md mx-auto">
-              Upload a photo of a person. Our AI will prepare it to be used as a fashion model by isolating them and placing them on a neutral background.
+          <p className="text-sm text-[var(--text-secondary)] max-w-md mx-auto">
+              Our AI will prepare your photo to be used as a fashion model by placing them on a neutral background.
           </p>
           <button
               onClick={triggerFileUpload}
               disabled={isProcessing}
-              className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-zinc-400"
+              className="bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-white disabled:bg-[var(--disabled-bg)] disabled:text-[var(--disabled-text)]"
           >
               {isProcessing ? 'Processing...' : 'Choose an Image'}
           </button>
           {isProcessing && <div className="pt-4"><Spinner /></div>}
-          {processingError && <p className="text-red-600 text-sm mt-2">{processingError}</p>}
+          {processingError && <p className="text-red-500 text-sm mt-2">{processingError}</p>}
         </div>
       )}
 
       {activeTab === 'camera' && (
         <div className="space-y-4 text-center p-4">
             <h4 className="text-lg font-semibold">Become the Model</h4>
-            <p className="text-sm text-zinc-500 max-w-md mx-auto">
-                Use your camera to take a photo. Our AI will turn it into a professional model shot you can use for virtual try-ons.
+            <p className="text-sm text-[var(--text-secondary)] max-w-md mx-auto">
+                Use your camera to take a photo. Our AI will turn it into a professional model shot.
             </p>
             <CameraView 
                 onCapture={handleCapture}

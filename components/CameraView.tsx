@@ -102,8 +102,8 @@ const CameraView: React.FC<CameraViewProps> = ({
       return (
           <div className="text-center p-8 space-y-4">
               <Spinner />
-              <p className="font-semibold">Preparing your model shot...</p>
-              <p className="text-sm text-zinc-500">The AI is creating a professional portrait for you.</p>
+              <p className="font-semibold text-[var(--text-primary)]">Preparing your model shot...</p>
+              <p className="text-sm text-[var(--text-secondary)]">The AI is creating a professional portrait for you.</p>
           </div>
       );
   }
@@ -111,11 +111,11 @@ const CameraView: React.FC<CameraViewProps> = ({
   if (processingError) {
       return (
         <div className="text-center p-8 space-y-4">
-            <p className="text-red-600 font-semibold">Processing Failed</p>
-            <p className="text-sm text-zinc-500">{processingError}</p>
+            <p className="text-red-400 font-semibold">Processing Failed</p>
+            <p className="text-sm text-[var(--text-secondary)]">{processingError}</p>
             <button
                 onClick={onRetake}
-                className="bg-zinc-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-zinc-900"
+                className="bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-white"
             >
                 Try Again
             </button>
@@ -126,17 +126,17 @@ const CameraView: React.FC<CameraViewProps> = ({
   if (capturedImage) {
     return (
       <div className="space-y-4 text-center">
-        <img src={capturedImage} alt="Captured" className="w-full max-w-sm mx-auto aspect-[3/4] object-cover rounded-md border" />
+        <img src={capturedImage} alt="Captured" className="w-full max-w-sm mx-auto aspect-[3/4] object-cover rounded-md border border-[var(--border-secondary)]" />
         <div className="flex gap-4 max-w-sm mx-auto">
             <button
                 onClick={onRetake}
-                className="flex-1 bg-zinc-200 text-zinc-800 font-bold py-2 px-4 rounded-lg hover:bg-zinc-300"
+                className="flex-1 bg-[var(--background-tertiary)] text-[var(--text-primary)] font-bold py-2 px-4 rounded-lg border border-[var(--border-secondary)] hover:bg-opacity-80"
             >
                 Retake
             </button>
             <button
                 onClick={onUsePhoto}
-                className="flex-1 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"
+                className="flex-1 bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-white"
             >
                 Use This Photo
             </button>
@@ -146,19 +146,19 @@ const CameraView: React.FC<CameraViewProps> = ({
   }
 
   if (error) {
-    return <div className="text-red-600 text-center p-8 bg-red-50 rounded-lg">{error}</div>;
+    return <div className="text-red-400 text-center p-8 bg-red-900/20 rounded-lg border border-red-500/30">{error}</div>;
   }
 
   return (
     <div className="space-y-4 text-center">
-      <div className="relative w-full max-w-sm mx-auto aspect-[3/4] bg-zinc-900 rounded-lg overflow-hidden border">
+      <div className="relative w-full max-w-sm mx-auto aspect-[3/4] bg-black rounded-lg overflow-hidden border border-[var(--border-secondary)]">
         <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover transform -scale-x-100"></video>
         {!isStreamActive && <div className="absolute inset-0 flex items-center justify-center"><Spinner /></div>}
       </div>
       <button
         onClick={handleCapture}
         disabled={!isStreamActive}
-        className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-zinc-400"
+        className="bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-white disabled:bg-[var(--disabled-bg)] disabled:text-[var(--disabled-text)]"
       >
         Take Photo
       </button>

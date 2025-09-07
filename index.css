@@ -1,1 +1,76 @@
-full contents of index.css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background-primary: #000000;
+  --background-secondary: #111111;
+  --background-tertiary: #1A1A1A;
+  
+  --text-primary: #CCCCCC; /* light gray */
+  --text-secondary: #888888; /* zinc-400 equivalent */
+  --text-inverted: #000000;
+  --text-button: #FFFFFF;
+  
+  --border-primary: #27272a; /* zinc-800 */
+  --border-secondary: #3f3f46; /* zinc-700 */
+  --border-tertiary: #52525b; /* zinc-600 */
+
+  --accent-blue: #00E5FF;
+  --accent-magenta: #FF00C8;
+  --accent-gold: #FFD700;
+  --accent-yellow: #FFE135;
+  --accent-red: #EF4444;
+
+  --shadow-blue: rgba(0, 229, 255, 0.7);
+  --shadow-magenta: rgba(255, 0, 200, 0.6);
+  
+  --disabled-bg: #3f3f46; /* zinc-700 */
+  --disabled-text: #71717a; /* zinc-500 */
+}
+
+body.light-mode {
+  --background-primary: #FFFFFF;
+  --background-secondary: #F7F7F7;
+  --background-tertiary: #FFFFFF;
+  
+  --text-primary: #000000;
+  --text-secondary: #333333;
+  --text-inverted: #FFFFFF;
+  --text-button: #000000;
+
+  --border-primary: #DDDDDD;
+  --border-secondary: #EAEAEA;
+  --border-tertiary: #CCCCCC;
+
+  --disabled-bg: #EAEAEA;
+  --disabled-text: #888888;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+}
+
+/* Custom styles for the color picker to make it a simple circle */
+.color-picker-swatch {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 50px;
+  height: 50px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background-color: transparent;
+  padding: 0;
+}
+.color-picker-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.color-picker-swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}

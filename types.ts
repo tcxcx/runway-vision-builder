@@ -53,6 +53,7 @@ export interface GeneratedResult {
     images: { angle: string; image: string; }[];
     representativeImage: string; // Used as the base for video generation
     activeDisplayUrl?: string; // The URL of the currently displayed image or video in the gallery
+    aspectRatio: '9:16' | '16:9';
     videoPrompt?: string;
 
     // Preview
@@ -60,12 +61,14 @@ export interface GeneratedResult {
     previewVideoOperation?: any;
     isPreviewLoading?: boolean;
     previewError?: string;
+    previewVideoDirectLink?: string;
 
     // Final Video
     finalVideo?: string;
     finalVideoOperation?: any;
     isFinalLoading?: boolean;
     finalError?: string;
+    finalVideoDirectLink?: string;
 
     // General image generation error
     error?: string;

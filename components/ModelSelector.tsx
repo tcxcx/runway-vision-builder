@@ -181,7 +181,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, o
           <button
             onClick={handleGenerate}
             disabled={isLoading || !prompt}
-            className="w-full bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-[var(--disabled-bg)] disabled:text-[var(--disabled-text)] hover:enabled:bg-white"
+            className="w-full bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-[var(--disabled-bg)] disabled:text-[var(--disabled-text)] hover:enabled:bg-opacity-80"
           >
             {isLoading ? 'Generating...' : 'Generate'}
           </button>
@@ -194,7 +194,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, o
               <img src={generatedImageUrl} alt="Generated model" className="w-full aspect-[3/4] object-cover rounded-md border border-[var(--border-secondary)]" />
               <button
                 onClick={handleSaveGenerated}
-                className="w-full bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-white"
+                className="w-full bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-opacity-80"
               >
                 Save to Catalogue
               </button>
@@ -212,7 +212,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, o
           <button
               onClick={triggerFileUpload}
               disabled={isProcessing}
-              className="bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-white disabled:bg-[var(--disabled-bg)] disabled:text-[var(--disabled-text)]"
+              className="bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-opacity-80 disabled:bg-[var(--disabled-bg)] disabled:text-[var(--disabled-text)]"
           >
               {isProcessing ? 'Processing...' : 'Choose an Image'}
           </button>

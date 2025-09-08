@@ -115,7 +115,7 @@ const CameraView: React.FC<CameraViewProps> = ({
             <p className="text-sm text-[var(--text-secondary)]">{processingError}</p>
             <button
                 onClick={onRetake}
-                className="bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-white"
+                className="bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-opacity-80"
             >
                 Try Again
             </button>
@@ -136,7 +136,7 @@ const CameraView: React.FC<CameraViewProps> = ({
             </button>
             <button
                 onClick={onUsePhoto}
-                className="flex-1 bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-white"
+                className="flex-1 bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-opacity-80"
             >
                 Use This Photo
             </button>
@@ -158,7 +158,7 @@ const CameraView: React.FC<CameraViewProps> = ({
       <button
         onClick={handleCapture}
         disabled={!isStreamActive}
-        className="bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-white disabled:bg-[var(--disabled-bg)] disabled:text-[var(--disabled-text)]"
+        className="bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-opacity-80 disabled:bg-[var(--disabled-bg)] disabled:text-[var(--disabled-text)]"
       >
         Take Photo
       </button>

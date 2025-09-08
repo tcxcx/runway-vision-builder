@@ -61,6 +61,7 @@ const App: React.FC = () => {
   const [selectedAccessories, setSelectedAccessories] = useState<Accessory[]>([]);
   const [selectedPose, setSelectedPose] = useState<Pose | null>(poses[0]);
   const [customPosePrompt, setCustomPosePrompt] = useState('');
+  const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('9:16');
   
   // Generation State
   const [generationState, setGenerationState] = useState<GenerationState>('idle');
@@ -155,7 +156,7 @@ const App: React.FC = () => {
     setError(null);
     setGenerationState('loading-image');
     try {
-      const composedResults = await composeFinalImage(selectedModels, selectedProducts, selectedScene, selectedAccessories, selectedPose!, customPosePrompt, selectedColor);
+      const composedResults = await composeFinalImage(selectedModels, selectedProducts, selectedScene, selectedAccessories, selectedPose!, customPosePrompt, selectedColor, aspectRatio);
       
       let initialResults: GeneratedResult[] = composedResults.map(res => {
         const representativeImage = res.images.find(img => img.angle === 'Front View')?.image || res.images[0]?.image;
@@ -164,16 +165,17 @@ const App: React.FC = () => {
           images: res.images,
           representativeImage: representativeImage,
           activeDisplayUrl: representativeImage,
+          aspectRatio: aspectRatio,
         };
       });
       
       const descriptions = await Promise.all(
         initialResults.map(result => {
-           if (!result.representativeImage) {
-            return Promise.resolve("Could not generate video description: no representative image found.");
+           if (result.images.length === 0) {
+            return Promise.resolve("Could not generate video description: no images found.");
           }
           return generateVideoDescription(
-            result.representativeImage,
+            result.images,
             result.model,
             selectedProducts,
             selectedAccessories,
@@ -191,7 +193,7 @@ const App: React.FC = () => {
       setError(err instanceof Error ? err.message : "An unknown error occurred during generation.");
       setGenerationState('error');
     }
-  }, [isGenerateDisabled, selectedModels, selectedProducts, selectedScene, selectedAccessories, selectedPose, customPosePrompt, selectedColor]);
+  }, [isGenerateDisabled, selectedModels, selectedProducts, selectedScene, selectedAccessories, selectedPose, customPosePrompt, selectedColor, aspectRatio]);
 
   const handleGeneratePreview = useCallback(async (resultIndex: number) => {
     const targetResult = generatedResults[resultIndex];
@@ -200,7 +202,7 @@ const App: React.FC = () => {
     setGeneratedResults(prev => prev.map((res, i) => i === resultIndex ? { ...res, isPreviewLoading: true, previewError: undefined } : res));
 
     try {
-      const operation = await generateVideoPreview(targetResult.videoPrompt, targetResult.representativeImage);
+      const operation = await generateVideoPreview(targetResult.videoPrompt, targetResult.representativeImage, targetResult.aspectRatio);
       setGeneratedResults(prev => prev.map((res, i) => i === resultIndex ? { ...res, previewVideoOperation: operation } : res));
     } catch (err) {
        setGeneratedResults(prev => prev.map((res, i) => i === resultIndex ? { ...res, isPreviewLoading: false, previewError: err instanceof Error ? `Failed to start video preview generation. Details: ${err.message}` : 'Failed' } : res));
@@ -214,7 +216,7 @@ const App: React.FC = () => {
     setGeneratedResults(prev => prev.map((res, i) => i === resultIndex ? { ...res, isFinalLoading: true, finalError: undefined } : res));
 
     try {
-      const operation = await generateFinalVideo(targetResult.videoPrompt, targetResult.representativeImage);
+      const operation = await generateFinalVideo(targetResult.videoPrompt, targetResult.representativeImage, targetResult.aspectRatio);
       setGeneratedResults(prev => prev.map((res, i) => i === resultIndex ? { ...res, finalVideoOperation: operation } : res));
     } catch (err) {
        setGeneratedResults(prev => prev.map((res, i) => i === resultIndex ? { ...res, isFinalLoading: false, finalError: err instanceof Error ? `Failed to start final video generation. Details: ${err.message}` : 'Failed' } : res));
@@ -246,6 +248,9 @@ const App: React.FC = () => {
             }
           } catch (err) {
              result.previewError = err instanceof Error ? err.message : "Preview failed.";
+             if ((err as any).directDownloadUrl) {
+               result.previewVideoDirectLink = (err as any).directDownloadUrl;
+             }
              result.previewVideoOperation = null;
              result.isPreviewLoading = false;
              needsStateUpdate = true;
@@ -265,6 +270,9 @@ const App: React.FC = () => {
             }
           } catch (err) {
              result.finalError = err instanceof Error ? err.message : "Final video failed.";
+             if ((err as any).directDownloadUrl) {
+               result.finalVideoDirectLink = (err as any).directDownloadUrl;
+             }
              result.finalVideoOperation = null;
              result.isFinalLoading = false;
              needsStateUpdate = true;
@@ -294,7 +302,7 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    document.body.className = `theme-${theme}`;
+    document.body.className = theme === 'light' ? 'light-mode' : '';
   }, [theme]);
 
   const handleFullscreen = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -399,6 +407,23 @@ const App: React.FC = () => {
                 <p><strong>Scene:</strong> {selectedScene?.name || (selectedColor ? `Solid: ${selectedColor}` : 'None')}</p>
                 <p><strong>Pose:</strong> {selectedPose?.name || 'None'}</p>
               </div>
+                <div className="mt-4 pt-4 border-t border-[var(--border-secondary)]">
+                    <p className="font-semibold text-sm mb-2 text-center">Output Format</p>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button
+                            onClick={() => setAspectRatio('9:16')}
+                            className={`py-2 px-3 rounded-md text-sm font-semibold transition-colors ${aspectRatio === '9:16' ? 'bg-[var(--accent-blue)] text-[var(--text-inverted)]' : 'bg-[var(--background-tertiary)] hover:bg-opacity-80'}`}
+                        >
+                            Vertical (9:16)
+                        </button>
+                        <button
+                            onClick={() => setAspectRatio('16:9')}
+                            className={`py-2 px-3 rounded-md text-sm font-semibold transition-colors ${aspectRatio === '16:9' ? 'bg-[var(--accent-blue)] text-[var(--text-inverted)]' : 'bg-[var(--background-tertiary)] hover:bg-opacity-80'}`}
+                        >
+                            Horizontal (16:9)
+                        </button>
+                    </div>
+                </div>
               <button
                 onClick={handleGenerate}
                 disabled={isGenerateDisabled}
@@ -419,9 +444,9 @@ const App: React.FC = () => {
             )}
 
             {error && (
-              <div className="my-8 p-4 bg-red-900/30 border border-red-500/50 rounded-lg max-w-2xl mx-auto">
-                <p className="font-bold">An error occurred:</p>
-                <p className="text-sm mt-2">{error}</p>
+              <div className="my-8 p-4 bg-[var(--error-bg)] border border-[var(--error-border)] rounded-lg max-w-2xl mx-auto">
+                <p className="font-bold text-[var(--error-text)]">An error occurred:</p>
+                <p className="text-sm mt-2 text-[var(--error-text-soft)]">{error}</p>
               </div>
             )}
 
@@ -432,10 +457,10 @@ const App: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     {/* Main Display Area */}
-                    <div className="md:col-span-3 w-full aspect-[3/4] bg-[var(--background-tertiary)] rounded-lg overflow-hidden flex items-center justify-center">
-                      {result.activeDisplayUrl?.startsWith('data:video/') ? (
+                    <div className={`md:col-span-3 w-full bg-[var(--background-tertiary)] rounded-lg overflow-hidden flex items-center justify-center ${result.aspectRatio === '16:9' ? 'aspect-video' : 'aspect-[9/16]'}`}>
+                      {result.activeDisplayUrl?.startsWith('data:video/') || result.activeDisplayUrl?.startsWith('blob:') ? (
                         <div className="relative group w-full h-full">
-                          <video src={result.activeDisplayUrl} controls autoPlay loop muted className="w-full h-full object-contain bg-black"></video>
+                          <video src={result.activeDisplayUrl} controls autoPlay loop muted className="w-full h-full object-contain bg-[var(--background-tertiary)]"></video>
                           <button 
                               onClick={handleFullscreen}
                               className="absolute bottom-2 right-2 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
@@ -458,7 +483,7 @@ const App: React.FC = () => {
                             <div
                                 key={shot.image}
                                 onClick={() => handleSetActiveDisplay(index, shot.image)}
-                                className={`relative group cursor-pointer rounded-md overflow-hidden border-2 transition-all w-28 h-auto aspect-[3/4] md:w-full flex-shrink-0 ${result.activeDisplayUrl === shot.image ? 'border-[var(--accent-blue)]' : 'border-transparent hover:border-[var(--accent-magenta)]'}`}
+                                className={`relative group cursor-pointer rounded-md overflow-hidden border-2 transition-all w-28 aspect-square md:w-full flex-shrink-0 ${result.activeDisplayUrl === shot.image ? 'border-[var(--accent-blue)]' : 'border-transparent hover:border-[var(--accent-magenta)]'}`}
                                 title={`View ${shot.angle}`}
                             >
                                 <img src={shot.image} alt={shot.angle} className="w-full h-full object-cover"/>
@@ -470,7 +495,7 @@ const App: React.FC = () => {
                         {result.previewVideo && (
                             <div
                                 onClick={() => handleSetActiveDisplay(index, result.previewVideo!)}
-                                className={`relative group cursor-pointer rounded-md overflow-hidden border-2 transition-all w-28 h-auto aspect-[3/4] md:w-full flex-shrink-0 ${result.activeDisplayUrl === result.previewVideo ? 'border-[var(--accent-blue)]' : 'border-transparent hover:border-[var(--accent-magenta)]'}`}
+                                className={`relative group cursor-pointer rounded-md overflow-hidden border-2 transition-all w-28 aspect-square md:w-full flex-shrink-0 ${result.activeDisplayUrl === result.previewVideo ? 'border-[var(--accent-blue)]' : 'border-transparent hover:border-[var(--accent-magenta)]'}`}
                                 title="View Preview Video"
                            >
                                 <img src={result.representativeImage} alt="Preview Video Thumbnail" className="w-full h-full object-cover"/>
@@ -483,7 +508,7 @@ const App: React.FC = () => {
                         {result.finalVideo && (
                            <div
                                 onClick={() => handleSetActiveDisplay(index, result.finalVideo!)}
-                                className={`relative group cursor-pointer rounded-md overflow-hidden border-2 transition-all w-28 h-auto aspect-[3/4] md:w-full flex-shrink-0 ${result.activeDisplayUrl === result.finalVideo ? 'border-[var(--accent-blue)]' : 'border-transparent hover:border-[var(--accent-magenta)]'}`}
+                                className={`relative group cursor-pointer rounded-md overflow-hidden border-2 transition-all w-28 aspect-square md:w-full flex-shrink-0 ${result.activeDisplayUrl === result.finalVideo ? 'border-[var(--accent-blue)]' : 'border-transparent hover:border-[var(--accent-magenta)]'}`}
                                 title="View HQ Video"
                            >
                                 <img src={result.representativeImage} alt="HQ Video Thumbnail" className="w-full h-full object-cover"/>
@@ -501,16 +526,28 @@ const App: React.FC = () => {
                     {/* Preview Video Button */}
                     <div>
                         {result.previewVideo ? (
-                             <div className="w-full bg-green-500/20 text-green-300 font-bold py-2 px-4 rounded-lg text-center text-sm">Preview Ready</div>
+                             <div className="w-full bg-[var(--success-bg)] text-[var(--success-text)] font-bold py-2 px-4 rounded-lg text-center text-sm">Preview Ready</div>
                         ) : result.isPreviewLoading ? (
                              <div className="w-full aspect-video bg-[var(--background-tertiary)] flex flex-col items-center justify-center rounded-md p-4">
                                 <Spinner />
                                 <p className="text-xs mt-2 text-[var(--text-secondary)]">Generating preview...</p>
                             </div>
                         ) : result.previewError ? (
-                            <div className="bg-red-900/20 rounded-md p-3 text-red-400 text-left h-full">
-                                <p className="text-sm font-semibold text-center">Preview Failed</p>
-                                <p className="text-xs mt-2 opacity-80 break-all w-full">{result.previewError}</p>
+                            <div className="bg-[var(--error-bg)] rounded-md p-3 text-[var(--error-text)] text-left h-full flex flex-col justify-between">
+                                <div>
+                                    <p className="text-sm font-semibold text-center">Preview Failed</p>
+                                    <p className="text-xs mt-2 text-[var(--error-text-soft)] break-all w-full">{result.previewError}</p>
+                                </div>
+                                {result.previewVideoDirectLink && (
+                                    <a 
+                                        href={result.previewVideoDirectLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block w-full text-center mt-3 bg-[var(--info-bg)] hover:bg-[var(--info-bg-hover)] text-[var(--info-text)] text-xs font-bold py-1.5 px-2 rounded-md"
+                                    >
+                                        Download Manually
+                                    </a>
+                                )}
                             </div>
                         ) : (
                             <button onClick={() => handleGeneratePreview(index)} className="w-full bg-[var(--accent-blue)]/80 text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-[var(--accent-blue)]">Generate Preview</button>
@@ -520,7 +557,7 @@ const App: React.FC = () => {
                     {/* Final Video Button */}
                     <div>
                         {result.finalVideo ? (
-                             <div className="w-full bg-green-500/20 text-green-300 font-bold py-2 px-4 rounded-lg text-center text-sm">HQ Video Ready</div>
+                             <div className="w-full bg-[var(--success-bg)] text-[var(--success-text)] font-bold py-2 px-4 rounded-lg text-center text-sm">HQ Video Ready</div>
                         ) : result.isFinalLoading ? (
                              <div className="w-full aspect-video bg-[var(--background-tertiary)] flex flex-col items-center justify-center rounded-md p-4">
                                 <Spinner />
@@ -528,9 +565,21 @@ const App: React.FC = () => {
                                 <p className="text-xs mt-1 text-[var(--text-secondary)]">(This may take a minute)</p>
                             </div>
                         ) : result.finalError ? (
-                             <div className="bg-red-900/20 rounded-md p-3 text-red-400 text-left h-full">
-                                <p className="text-sm font-semibold text-center">HQ Video Failed</p>
-                                <p className="text-xs mt-2 opacity-80 break-all w-full">{result.finalError}</p>
+                             <div className="bg-[var(--error-bg)] rounded-md p-3 text-[var(--error-text)] text-left h-full flex flex-col justify-between">
+                                 <div>
+                                    <p className="text-sm font-semibold text-center">HQ Video Failed</p>
+                                    <p className="text-xs mt-2 text-[var(--error-text-soft)] break-all w-full">{result.finalError}</p>
+                                </div>
+                                {result.finalVideoDirectLink && (
+                                     <a 
+                                        href={result.finalVideoDirectLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block w-full text-center mt-3 bg-[var(--info-bg)] hover:bg-[var(--info-bg-hover)] text-[var(--info-text)] text-xs font-bold py-1.5 px-2 rounded-md"
+                                    >
+                                        Download Manually
+                                    </a>
+                                )}
                             </div>
                         ) : (
                             <button onClick={() => handleGenerateFinalVideo(index)} className="w-full bg-[var(--accent-magenta)] text-[var(--text-button)] font-bold py-2 px-4 rounded-lg hover:bg-opacity-80">Generate HQ Video</button>
@@ -543,7 +592,7 @@ const App: React.FC = () => {
             </div>
 
             {(generationState === 'image-success' || generationState === 'error') && (
-              <button onClick={handleStartOver} className="mt-12 bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-3 px-6 rounded-lg hover:bg-white">
+              <button onClick={handleStartOver} className="mt-12 bg-[var(--accent-blue)] text-[var(--text-button)] font-bold py-3 px-6 rounded-lg hover:bg-opacity-80">
                 Start Over
               </button>
             )}

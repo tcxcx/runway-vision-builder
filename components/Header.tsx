@@ -37,10 +37,11 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick, theme, setTheme }) => {
             onClick={onLogoClick}
             title="Start Over"
           >
+          
             <img 
               src="./assets/visionrunwaybanana.png" 
               alt="VisionRunway Logo" 
-              className="w-full transition-transform group-hover:-rotate-12" 
+              className="w-32 transition-transform group-hover:-rotate-12" 
             />
             <h1 className="text-3xl font-bold tracking-tighter">
               Vision<span style={{color: 'var(--accent-gold)'}}>Runway</span>

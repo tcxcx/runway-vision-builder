@@ -47,13 +47,6 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick, theme, setTheme }) => {
             </h1>
           </div>
           <div className="flex items-center gap-8">
-            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[var(--text-secondary)]">
-              <a href="#" className="hover:text-[var(--accent-blue)] transition-colors">Home</a>
-              <a href="#" className="hover:text-[var(--accent-blue)] transition-colors">Wardrobe</a>
-              <a href="#" className="hover:text-[var(--accent-blue)] transition-colors">Scenes</a>
-              <a href="#" className="hover:text-[var(--accent-blue)] transition-colors">Collections</a>
-              <a href="#" className="hover:text-[var(--accent-blue)] transition-colors">Profile</a>
-            </nav>
             <button 
                 onClick={toggleTheme}
                 className="p-2 rounded-full text-[var(--text-secondary)] hover:text-[var(--accent-blue)] hover:bg-[var(--background-tertiary)]"

@@ -18,6 +18,13 @@ interface ProductSelectorProps {
   onProductCreated: (name: string, imageUrl: string) => void;
 }
 
+const PlusIcon: React.FC<{className?: string}> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 12h14" />
+        <path d="M12 5v14" />
+    </svg>
+);
+
 const ProductSelector: React.FC<ProductSelectorProps> = ({ products, selectedProducts, onSelectProduct, onAddProduct, onDeleteProduct, onProductCreated }) => {
   const [activeTab, setActiveTab] = useState<'catalogue' | 'create' | 'upload'>('catalogue');
   const [prompt, setPrompt] = useState('');
@@ -88,6 +95,14 @@ const ProductSelector: React.FC<ProductSelectorProps> = ({ products, selectedPro
               onDelete={product.isCustom ? onDeleteProduct : undefined}
             />
           ))}
+          <div
+            onClick={triggerFileUpload}
+            className="flex flex-col items-center justify-center text-center p-4 aspect-square bg-[var(--background-tertiary)] rounded-lg border-2 border-dashed border-[var(--border-tertiary)] cursor-pointer transition-colors hover:border-[var(--accent-blue)] hover:text-[var(--accent-blue)] text-[var(--text-secondary)]"
+            title="Add new from file"
+          >
+            <PlusIcon className="w-8 h-8 mb-2" />
+            <span className="font-semibold text-sm">Add New</span>
+          </div>
         </div>
       )}
 

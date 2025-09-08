@@ -38,6 +38,13 @@ const dataURLtoFile = (dataurl: string, filename: string): File => {
     return new File([u8arr], filename, {type:mime});
 };
 
+const PlusIcon: React.FC<{className?: string}> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 12h14" />
+        <path d="M12 5v14" />
+    </svg>
+);
+
 const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, onSelectModel, onModelCreated, onDeleteModel, onUploadAndProcessModel }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('catalogue');
   const [prompt, setPrompt] = useState('');
@@ -142,6 +149,14 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, o
               onDelete={model.isCustom ? onDeleteModel : undefined}
             />
           ))}
+          <div
+            onClick={triggerFileUpload}
+            className="flex flex-col items-center justify-center text-center p-4 aspect-square bg-[var(--background-tertiary)] rounded-lg border-2 border-dashed border-[var(--border-tertiary)] cursor-pointer transition-colors hover:border-[var(--accent-blue)] hover:text-[var(--accent-blue)] text-[var(--text-secondary)]"
+            title="Add new from file"
+          >
+            <PlusIcon className="w-8 h-8 mb-2" />
+            <span className="font-semibold text-sm">Add New</span>
+          </div>
         </div>
       )}
 

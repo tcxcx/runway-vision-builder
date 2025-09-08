@@ -152,7 +152,15 @@ export const composeFinalImage = async (
                     '1. Combine all provided images into one cohesive, photorealistic image.',
                     instruction2,
                     '3. The final image should look like a real photograph from a high-end fashion campaign. Pay close attention to lighting, shadows, and textures to ensure realism.',
-                    "4. Maintain the model's likeness, hair, and face from their original image."
+                    "4. Maintain the model's likeness, hair, and face from their original image. This is the most important rule."
+                );
+
+                promptLines.push(
+                    '**Negative Constraints (Things to AVOID):**',
+                    '- DO NOT change the model\'s face, ethnicity, or body type.',
+                    '- DO NOT generate distorted or unrealistic body parts (e.g., hands, limbs).',
+                    '- DO NOT add any text, logos, or watermarks to the image.',
+                    '- DO NOT produce a blurry, low-resolution, or cartoonish image. The output must be photorealistic.'
                 );
                 
                 parts.push({ text: promptLines.join('\n') });

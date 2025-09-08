@@ -23,6 +23,13 @@ interface SceneSelectorProps {
 
 type ActiveTab = 'catalogue' | 'create' | 'upload';
 
+const PlusIcon: React.FC<{className?: string}> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 12h14" />
+        <path d="M12 5v14" />
+    </svg>
+);
+
 const SceneSelector: React.FC<SceneSelectorProps> = ({ 
   scenes, 
   selectedScene, 
@@ -76,6 +83,10 @@ const SceneSelector: React.FC<SceneSelectorProps> = ({
       setActiveTab('catalogue');
     }
   };
+  
+  const triggerFileUpload = () => {
+    fileInputRef.current?.click();
+  };
 
   return (
     <div className="w-full">
@@ -83,7 +94,7 @@ const SceneSelector: React.FC<SceneSelectorProps> = ({
       <div className="flex border-b border-[var(--border-secondary)] mb-4">
         <TabButton label="Catalogue" isActive={activeTab === 'catalogue'} onClick={() => setActiveTab('catalogue')} />
         <TabButton label="Create with AI" isActive={activeTab === 'create'} onClick={() => setActiveTab('create')} />
-        <TabButton label="Upload" isActive={activeTab === 'upload'} onClick={() => fileInputRef.current?.click()} />
+        <TabButton label="Upload" isActive={activeTab === 'upload'} onClick={triggerFileUpload} />
       </div>
 
       {activeTab === 'catalogue' && (
@@ -119,6 +130,14 @@ const SceneSelector: React.FC<SceneSelectorProps> = ({
               onDelete={scene.isCustom ? onDeleteScene : undefined}
             />
           ))}
+          <div
+            onClick={triggerFileUpload}
+            className="flex flex-col items-center justify-center text-center p-4 aspect-square bg-[var(--background-tertiary)] rounded-lg border-2 border-dashed border-[var(--border-tertiary)] cursor-pointer transition-colors hover:border-[var(--accent-blue)] hover:text-[var(--accent-blue)] text-[var(--text-secondary)]"
+            title="Add new from file"
+          >
+            <PlusIcon className="w-8 h-8 mb-2" />
+            <span className="font-semibold text-sm">Add New</span>
+          </div>
         </div>
       )}
       

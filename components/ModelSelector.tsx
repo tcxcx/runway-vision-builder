@@ -150,12 +150,21 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModels, o
             />
           ))}
           <div
-            onClick={triggerFileUpload}
-            className="flex flex-col items-center justify-center text-center p-4 aspect-square bg-[var(--background-tertiary)] rounded-lg border-2 border-dashed border-[var(--border-tertiary)] cursor-pointer transition-colors hover:border-[var(--accent-blue)] hover:text-[var(--accent-blue)] text-[var(--text-secondary)]"
-            title="Add new from file"
+            onClick={!isProcessing ? triggerFileUpload : undefined}
+            className={`flex flex-col items-center justify-center text-center p-4 aspect-square bg-[var(--background-tertiary)] rounded-lg border-2 border-dashed border-[var(--border-tertiary)] text-[var(--text-secondary)] transition-colors ${!isProcessing ? 'cursor-pointer hover:border-[var(--accent-blue)] hover:text-[var(--accent-blue)]' : 'cursor-wait'}`}
+            title={isProcessing ? "Processing uploaded model..." : "Add new from file"}
           >
-            <PlusIcon className="w-8 h-8 mb-2" />
-            <span className="font-semibold text-sm">Add New</span>
+            {isProcessing ? (
+                <>
+                    <Spinner size="sm" />
+                    <span className="font-semibold text-xs mt-2">Processing...</span>
+                </>
+            ) : (
+                <>
+                    <PlusIcon className="w-8 h-8 mb-2" />
+                    <span className="font-semibold text-sm">Add New</span>
+                </>
+            )}
           </div>
         </div>
       )}

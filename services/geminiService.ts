@@ -3,362 +3,312 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-// FIX: Add necessary imports from @google/genai and types.
-// FIX: Import Modality for use in image editing API calls.
-import { GoogleGenAI, Modality, Type } from "@google/genai";
-import { Product, Scene, Model, Accessory, Pose } from "../types";
+// FIX: Implement the geminiService module to provide AI generation capabilities.
+import { GoogleGenAI, Modality } from "@google/genai";
+import { Model, Product, Scene, Accessory, Pose } from '../types';
 
-// FIX: Initialize the GoogleGenAI client according to guidelines.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-
-/**
- * Helper function to convert an image URL to a base64 encoded string for the Gemini API.
- */
-const imageUrlToBase64 = async (imageUrl: string): Promise<{ base64: string, mimeType: string }> => {
-    // Use a CORS proxy for external http/https URLs to prevent "Failed to fetch" errors caused by CORS policies.
-    // Data URLs are local and can be fetched directly.
-    const fetchUrl = imageUrl.startsWith('data:') ? imageUrl : `https://corsproxy.io/?${encodeURIComponent(imageUrl)}`;
-    
-    const response = await fetch(fetchUrl);
-    
-    if (!response.ok) {
-        // Provide a more detailed error message if the fetch fails.
-        throw new Error(`Failed to fetch image from ${imageUrl}. Status: ${response.status} ${response.statusText}`);
-    }
-
-    const blob = await response.blob();
-    const reader = new FileReader();
-    return new Promise((resolve, reject) => {
-        reader.onloadend = () => {
-            const base64Data = (reader.result as string).split(',')[1];
-            resolve({ base64: base64Data, mimeType: blob.type || 'image/png' });
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-};
-
-
-/**
- * Generates an image using the Imagen model.
- * @param prompt The text prompt for image generation.
- * @param aspectRatio The desired aspect ratio for the image.
- * @returns An object containing the imageUrl of the generated image.
- */
-async function generateImage(prompt: string, aspectRatio: '1:1' | '3:4' | '4:3' = '1:1'): Promise<{ imageUrl: string }> {
-    // FIX: Use the correct model for image generation tasks ('imagen-4.0-generate-001').
-    const response = await ai.models.generateImages({
-        model: 'imagen-4.0-generate-001',
-        prompt: prompt,
-        config: {
-          numberOfImages: 1,
-          outputMimeType: 'image/png',
-          aspectRatio: aspectRatio,
-        },
-    });
-
-    if (!response.generatedImages || response.generatedImages.length === 0) {
-        throw new Error("Image generation failed. No images were returned.");
-    }
-    
-    // FIX: Correctly extract base64 image bytes and create a data URL.
-    const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
-    const imageUrl = `data:image/png;base64,${base64ImageBytes}`;
-
-    return { imageUrl };
+if (!process.env.API_KEY) {
+    throw new Error("API_KEY environment variable is not set");
 }
 
-/**
- * Generates a clothing item image.
- * @param prompt The description of the clothing item.
- * @returns A promise that resolves to an object with the image URL.
- */
-export const generateClothingItem = (prompt: string): Promise<{ imageUrl: string }> => {
-    const fullPrompt = `A high-resolution, photorealistic image of a single clothing item, '${prompt}', on a clean, white, flat background. Studio lighting, front view, no shadows. The item should be perfectly laid out.`;
-    return generateImage(fullPrompt, '1:1');
-};
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-/**
- * Generates a scene/background image.
- * @param prompt The description of the scene.
- * @returns A promise that resolves to an object with the image URL.
- */
-export const generateScene = (prompt: string): Promise<{ imageUrl: string }> => {
-    const fullPrompt = `A high-resolution, photorealistic image of a fashion photoshoot background: '${prompt}'. The scene should be empty, with no people or distracting elements. Focus on the environment.`;
-    return generateImage(fullPrompt, '4:3');
-};
-
-/**
- * Generates a fashion model image.
- * @param prompt The description of the model.
- * @returns A promise that resolves to an object with the image URL.
- */
-export const generateModel = (prompt: string): Promise<{ imageUrl:string }> => {
-    const fullPrompt = `A high-resolution, full-body portrait of a fashion model: '${prompt}'. The model should be standing in a neutral pose against a plain, light gray background. Studio lighting.`;
-    return generateImage(fullPrompt, '3:4');
-};
-
-/**
- * Generates an accessory item image.
- * @param prompt The description of the accessory.
- * @returns A promise that resolves to an object with the image URL.
- */
-export const generateAccessory = (prompt: string): Promise<{ imageUrl: string }> => {
-    const fullPrompt = `A high-resolution, photorealistic image of a single fashion accessory, '${prompt}', on a clean, white background. Studio lighting, no shadows.`;
-    return generateImage(fullPrompt, '1:1');
-};
-
-/**
- * Processes a user-uploaded image of a person into a standardized model portrait.
- * @param imageUrl The URL of the uploaded image.
- * @returns A promise that resolves to an object with the processed image URL.
- */
-export const processUploadedModelImage = async (imageUrl: string): Promise<{ imageUrl: string }> => {
-    const model = 'gemini-2.5-flash-image-preview';
-    const prompt = `From the provided image, perfectly isolate the person from their background. Place them on a clean, neutral, light-gray studio background. The final image should be a 3:4 portrait aspect ratio and look like a professional model headshot.`;
-    
-    const { base64, mimeType } = await imageUrlToBase64(imageUrl);
-    const imagePart = { inlineData: { data: base64, mimeType: mimeType } };
-
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: { parts: [{ text: prompt }, imagePart] },
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
+// Helper to convert data URL to a Gemini Part object
+const dataUrlToImagePart = (dataUrl: string) => {
+    const match = dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,(.*)$/);
+    if (!match) {
+        throw new Error('Invalid data URL format');
+    }
+    const mimeType = match[1];
+    const data = match[2];
+    return {
+        inlineData: {
+            mimeType,
+            data,
         },
-    });
-
-    for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-            const base64ImageBytes: string = part.inlineData.data;
-            const newImageUrl = `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
-            return { imageUrl: newImageUrl };
-        }
-    }
-    throw new Error("Model processing failed. The model did not return an image.");
-};
-
-
-interface CompositionParams {
-    products: Product[];
-    model: Model;
-    scene: Scene | null;
-    sceneColor: string | null;
-    pose: Pose;
-    customPosePrompt?: string;
-    accessories: Accessory[];
-    referenceImageUrl?: string | null;
-    negativePrompt?: string;
-}
-
-/**
- * Generates the final product shot by combining all selected elements.
- * @param params The selected elements for the composition.
- * @returns A promise that resolves to an object with the image URL.
- */
-export const generateProductShot = async (params: CompositionParams): Promise<{ imageUrl: string }> => {
-    const model = 'gemini-2.5-flash-image-preview';
-    
-    const effectivePosePrompt = params.customPosePrompt || params.pose.prompt || `the pose '${params.pose.name}'`;
-
-    let prompt = `Create a photorealistic fashion product shot.
-- **Model**: Use the provided model image as the base.
-- **Clothing**: Dress the model in the provided clothing items (${params.products.map(p => `'${p.name}'`).join(', ')}). Layer them appropriately (e.g., t-shirt under a jacket). The clothing must fit perfectly and look natural.
-- **Pose**: The model should adopt a pose described as: "${effectivePosePrompt}". Use the provided pose image as a visual reference for the body position.
-- **Background**: Place the model in the provided scene. If a solid color background is provided, use that instead.
-- **Accessories**: Add the following accessories to the model: ${params.accessories.map(a => a.name).join(', ') || 'none'}. Place them appropriately (e.g., sunglasses on face, handbag in hand).
-- **Style**: The final image should be high-fashion, with professional lighting and a cohesive look.`;
-
-    if (params.sceneColor) {
-        prompt += ` The background should be a solid color: ${params.sceneColor}.`;
-    }
-    
-    if (params.negativePrompt) {
-        prompt += `\n- **Negative Prompt**: The final image MUST NOT contain any of the following elements: ${params.negativePrompt}.`;
-    }
-
-    if (params.referenceImageUrl) {
-        prompt += `\n- **IMPORTANT CONSISTENCY INSTRUCTION**: Use the provided Reference Image to ensure the model's face and body identity are an exact match. Ignore the clothing and pose in the reference image; only use it to maintain the model's personal identity.`;
-    }
-
-    const imageToPart = async (imageUrl: string) => {
-        const { base64, mimeType } = await imageUrlToBase64(imageUrl);
-        return { inlineData: { data: base64, mimeType: mimeType } };
     };
-
-    const parts: any[] = [
-        { text: prompt },
-        { text: "Model Image:" },
-        await imageToPart(params.model.imageUrl),
-        { text: "Pose Reference:" },
-        await imageToPart(params.pose.imageUrl),
-    ];
-
-    for (const product of params.products) {
-        parts.push({ text: `Clothing Item: ${product.name}` });
-        parts.push(await imageToPart(product.imageUrl));
-    }
-
-    if (params.scene) {
-        parts.push({ text: "Scene Image:" });
-        parts.push(await imageToPart(params.scene.imageUrl));
-    }
-    
-    if(params.referenceImageUrl) {
-        parts.push({ text: "Reference Image for Model Consistency:" });
-        parts.push(await imageToPart(params.referenceImageUrl));
-    }
-
-    for (const acc of params.accessories) {
-        parts.push({ text: `Accessory: ${acc.name}` });
-        parts.push(await imageToPart(acc.imageUrl));
-    }
-
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: { parts: parts },
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
-    });
-
-    for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-            const base64ImageBytes: string = part.inlineData.data;
-            const imageUrl = `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
-            return { imageUrl };
-        }
-    }
-    
-    throw new Error("Final image generation failed. The model did not return an image.");
 };
 
-/**
- * Creates a transparent cutout of the model and clothing from a final product shot.
- * @param imageUrl The URL of the final product shot.
- * @returns A promise that resolves to an object with the cutout image URL.
- */
-export const createProductCutout = async (imageUrl: string): Promise<{ imageUrl: string }> => {
-    const model = 'gemini-2.5-flash-image-preview';
-    const prompt = "From the provided image, perfectly isolate the person and all their clothing and accessories from the background. The output must be a PNG image with a fully transparent background.";
+// Generic image generation function
+const generateImage = async (prompt: string, aspectRatio: '1:1' | '3:4' | '4:3' = '1:1') => {
+    try {
+        const response = await ai.models.generateImages({
+            model: 'imagen-4.0-generate-001',
+            prompt: prompt,
+            config: {
+                numberOfImages: 1,
+                outputMimeType: 'image/png',
+                aspectRatio: aspectRatio,
+            },
+        });
 
-    const { base64, mimeType } = await imageUrlToBase64(imageUrl);
-    const imagePart = { inlineData: { data: base64, mimeType: mimeType } };
-
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: { parts: [{ text: prompt }, imagePart] },
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
-    });
-
-    for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-            const base64ImageBytes: string = part.inlineData.data;
-            const newImageUrl = `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
-            return { imageUrl: newImageUrl };
+        if (response.generatedImages && response.generatedImages.length > 0) {
+            const base64ImageBytes = response.generatedImages[0].image.imageBytes;
+            return { imageUrl: `data:image/png;base64,${base64ImageBytes}` };
+        } else {
+            throw new Error("Image generation failed, no images returned.");
         }
+    } catch (error) {
+        console.error("Error in generateImage:", error);
+        throw new Error(`Failed to generate image. Please try again. Details: ${error instanceof Error ? error.message : String(error)}`);
     }
-
-    throw new Error("Cutout generation failed. The model did not return an image.");
 };
 
-/**
- * Generates a descriptive sentence for a video prompt based on an image.
- * @param imageUrl The image to describe.
- * @returns A promise that resolves to the descriptive string.
- */
-export const generateDescriptionForVideo = async (imageUrl: string): Promise<string> => {
-    const model = 'gemini-2.5-flash';
-    const prompt = "Describe the person in this image, including their clothing, accessories, and overall style, in a single, concise sentence for a video generation prompt.";
-    const { base64, mimeType } = await imageUrlToBase64(imageUrl);
-    const imagePart = { inlineData: { data: base64, mimeType: mimeType } };
 
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: { parts: [{ text: prompt }, imagePart] },
-    });
+export const generateClothingItem = (prompt: string) => generateImage(`A professional, clean, high-resolution photo of a single clothing item, '${prompt}', on a pure white background. The item should be perfectly lit and displayed flat or on an invisible mannequin. E-commerce style.`, '1:1');
+export const generateAccessory = (prompt: string) => generateImage(`A professional, clean, high-resolution studio photo of a single fashion accessory, '${prompt}', on a pure white background. The item should be perfectly lit and sharply focused. E-commerce style.`, '1:1');
+export const generateScene = (prompt: string) => generateImage(`A beautiful, high-resolution, photorealistic background scene for a fashion photoshoot. The scene is '${prompt}'. The lighting should be flattering for a model. There should be no people or prominent characters in the scene.`, '4:3');
+export const generateModel = (prompt: string) => generateImage(`A full-body, professional fashion model photo. The model is '${prompt}'. They are standing against a solid, neutral gray studio background. The photo is photorealistic and high-resolution.`, '3:4');
 
-    return response.text.trim();
-}
+export const removeBackground = async (imageDataUrl: string) => {
+    try {
+        const imagePart = dataUrlToImagePart(imageDataUrl);
+        const promptPart = { text: "Segment the person from the background. Make the background fully transparent." };
 
-/**
- * Generates a short runway video based on the final product shot.
- * @param finalImageUrl The generated product shot to animate.
- * @param description A detailed description of the model and outfit.
- * @returns A promise that resolves to a video operation object.
- */
-export const generateRunwayVideo = async (finalImageUrl: string, description: string) => {
-    const model = 'veo-2.0-generate-001';
-    
-    const prompt = `${description}, walking down a runway as if in a fashion show. The movement should be subtle and elegant. The background should remain consistent with the image. The camera should have a slight parallax effect.`;
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: { parts: [imagePart, promptPart] },
+            config: {
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
+            },
+        });
+        
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+                const base64ImageBytes: string = part.inlineData.data;
+                return `data:image/png;base64,${base64ImageBytes}`;
+            }
+        }
+        throw new Error("Model did not return an image after background removal.");
+    } catch (error) {
+        console.error("Error in removeBackground:", error);
+        throw new Error(`Failed to remove background. Details: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
 
-    const { base64, mimeType } = await imageUrlToBase64(finalImageUrl);
+export const composeFinalImage = async (
+    models: Model[],
+    products: Product[],
+    scene: Scene | null,
+    accessories: Accessory[],
+    pose: Pose,
+    customPosePrompt: string,
+    backgroundColor: string | null
+): Promise<{ images: { angle: string, image: string }[], model: Model }[]> => {
+    try {
+        const results = [];
+        const angles = ['Front View', 'Three-Quarter View', 'Side View'];
 
-    let operation = await ai.models.generateVideos({
-        model: model,
-        prompt: prompt,
+        for (const model of models) {
+            const modelImages = [];
+            
+            for (const angle of angles) {
+                const parts: any[] = [];
+                
+                if (scene) {
+                    parts.push(dataUrlToImagePart(scene.imageUrl));
+                    parts.push({ text: `The background is the provided scene image. Place the model seamlessly within this environment.` });
+                } else if (backgroundColor) {
+                    parts.push({ text: `The background must be a solid color: ${backgroundColor}.` });
+                } else {
+                     parts.push({ text: `The background must be a solid, neutral light gray color.` });
+                }
+
+                parts.push(dataUrlToImagePart(model.imageUrl));
+                
+                const productNames = products.map(p => p.name).join(', ');
+                for (const product of products) {
+                    parts.push(dataUrlToImagePart(product.imageUrl));
+                }
+
+                const accessoryNames = accessories.map(a => a.name).join(', ');
+                 if (accessories.length > 0) {
+                    for (const accessory of accessories) {
+                        parts.push(dataUrlToImagePart(accessory.imageUrl));
+                    }
+                }
+                
+                const posePrompt = pose.name === 'Custom' ? customPosePrompt : pose.prompt;
+                
+                const promptLines = [
+                    '**Objective:** Create a single, ultra-realistic, professional fashion photograph.',
+                    `**Angle:** The camera angle for the shot must be: **${angle}**.`,
+                    '**Model:** The primary subject is the provided model image.',
+                    `**Clothing:** The model must be dressed in the following clothing items: ${productNames}. The clothes must fit the model perfectly and look natural.`,
+                ];
+
+                if (accessories.length > 0) {
+                    promptLines.push(`**Accessories:** The model must also be wearing or holding these accessories: ${accessoryNames}.`);
+                }
+
+                promptLines.push(`**Pose:** The model's pose should be exactly as described: "${posePrompt}".`);
+                promptLines.push('**Instructions:**');
+
+                const instruction2 = accessories.length > 0
+                    ? '2. Do NOT show any of the original clothing from the model image. The model must ONLY wear the provided clothing items and accessories.'
+                    : '2. Do NOT show any of the original clothing from the model image. The model must ONLY wear the provided clothing items.';
+
+                promptLines.push(
+                    '1. Combine all provided images into one cohesive, photorealistic image.',
+                    instruction2,
+                    '3. The final image should look like a real photograph from a high-end fashion campaign. Pay close attention to lighting, shadows, and textures to ensure realism.',
+                    "4. Maintain the model's likeness, hair, and face from their original image."
+                );
+                
+                parts.push({ text: promptLines.join('\n') });
+                
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash-image-preview',
+                    contents: { parts },
+                     config: {
+                        responseModalities: [Modality.IMAGE, Modality.TEXT],
+                    },
+                });
+                
+                let foundImage = false;
+                for (const part of response.candidates[0].content.parts) {
+                    if (part.inlineData) {
+                        const base64ImageBytes: string = part.inlineData.data;
+                        modelImages.push({ angle, image: `data:image/png;base64,${base64ImageBytes}` });
+                        foundImage = true;
+                        break; 
+                    }
+                }
+                 if (!foundImage) {
+                    console.warn(`Image generation failed for model ${model.name} at angle ${angle}.`);
+                 }
+            }
+            
+            if (modelImages.length > 0) {
+                results.push({ images: modelImages, model });
+            } else {
+                 throw new Error(`Image composition failed for model ${model.name}. The model did not return any images.`);
+            }
+        }
+        return results;
+
+    } catch (error) {
+        console.error("Error in composeFinalImage:", error);
+        throw new Error(`Failed to compose image. Details: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+
+
+export const generateVideoDescription = async (
+    composedImage: string,
+    model: Model,
+    products: Product[],
+    accessories: Accessory[],
+    scene: Scene | null
+): Promise<string> => {
+    try {
+        const productNames = products.map(p => p.name).join(', ');
+        const accessoryNames = accessories.map(a => a.name).join(', ');
+        const sceneName = scene ? `in the scene '${scene.name}'` : 'in a studio setting';
+
+        const promptText = `**Primary Goal:** Create a short, compelling video prompt (20-30 words).
+
+**CONTEXT:**
+You are given several source images:
+1.  An **original model**.
+2.  Clothing items: ${productNames}.
+3.  ${accessories.length > 0 ? `Accessories: ${accessoryNames}.` : ''}
+4.  A final **composed image** showing the model wearing everything ${sceneName}.
+
+**TASK:**
+Write a prompt to generate a video. The video should show the model walking a runway or moving cinematically.
+
+**CRUCIAL INSTRUCTIONS:**
+-   Your description MUST be faithful to the **original model's key features** (e.g., "A blonde model...", "A model with short dark hair..."). Use the original model image as the ground truth for their appearance.
+-   Describe the ACTION based on the final composed image and scene. Focus on movement, the flow of the clothing, and the atmosphere.
+-   Do not just list the items. Create a vivid, actionable scene description.`;
+
+        const parts: any[] = [
+            dataUrlToImagePart(model.imageUrl), // Original model is key context
+            ...products.map(p => dataUrlToImagePart(p.imageUrl)),
+            ...accessories.map(a => dataUrlToImagePart(a.imageUrl)),
+            dataUrlToImagePart(composedImage), // Final composed shot for action context
+            { text: promptText }
+        ];
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { parts },
+        });
+
+        return response.text.trim();
+    } catch (error) {
+        console.error("Error in generateVideoDescription:", error);
+        throw new Error(`Failed to generate video description. Details: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+
+const generateVideoBase = async (
+    videoPrompt: string, 
+    composedImage: string,
+    config: any = {}
+) => {
+    const imagePart = dataUrlToImagePart(composedImage);
+        
+    const finalPrompt = `**Critical requirement: The person in the video MUST be an identical match to the person in the reference image.** Preserve their face, hair, and physical features perfectly. The video should bring this exact person to life.
+      
+Video prompt: "${videoPrompt}"`;
+
+    return ai.models.generateVideos({
+        model: 'veo-2.0-generate-001',
+        prompt: finalPrompt,
         image: {
-            imageBytes: base64,
-            mimeType: mimeType,
+            imageBytes: imagePart.inlineData.data,
+            mimeType: imagePart.inlineData.mimeType,
         },
         config: {
-            numberOfVideos: 1
+            numberOfVideos: 1,
+            negativePrompt: "Do not change the model’s face, hair, or outfit. Do not generate a different person.",
+            ...config
         }
     });
-
-    return operation;
 };
 
-/**
- * Polls the status of a video generation operation.
- * @param operation The operation object to poll.
- * @returns An updated operation object.
- */
-export const pollVideoOperation = async (operation: any) => {
-    const updatedOperation = await ai.operations.getVideosOperation({ operation: operation });
-    return updatedOperation;
+export const generateVideoPreview = async (videoPrompt: string, composedImage: string) => {
+    try {
+        return await generateVideoBase(videoPrompt, composedImage, { durationSeconds: 5 });
+    } catch (error) {
+        console.error("Error in generateVideoPreview:", error);
+        throw new Error(`Failed to start video preview generation. Details: ${error instanceof Error ? error.message : String(error)}`);
+    }
 };
 
-/**
- * Gets styling suggestions from the Gemini text model.
- * @param catalogues - An object containing all available items.
- * @returns A promise that resolves to an array of suggestions.
- */
-export const getStylingSuggestions = async (catalogues: { products: Product[], models: Model[], scenes: Scene[], accessories: Accessory[] }) => {
-    const prompt = `You are an expert fashion stylist. Based on the following available assets, suggest three distinct and creative outfits. Suggest 1 or 2 clothing items per look, layering them if appropriate. Provide your response as a valid JSON array.
+export const generateFinalVideo = async (videoPrompt: string, composedImage: string) => {
+    try {
+        return await generateVideoBase(videoPrompt, composedImage, { durationSeconds: 8 });
+    } catch (error) {
+        console.error("Error in generateFinalVideo:", error);
+        throw new Error(`Failed to start final video generation. Details: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
 
-    Available Products: ${JSON.stringify(catalogues.products.map(p => p.name))}
-    Available Models: ${JSON.stringify(catalogues.models.map(m => m.name))}
-    Available Scenes: ${JSON.stringify(catalogues.scenes.map(s => s.name))}
-    Available Accessories: ${JSON.stringify(catalogues.accessories.map(a => a.name))}
-    `;
-    
-    const responseSchema = {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            description: { type: Type.STRING, description: "A short, creative description of the look's style." },
-            productNames: { type: Type.ARRAY, items: { type: Type.STRING }, description: "A list of product names for this look." },
-            modelName: { type: Type.STRING, description: "The name of the model for this look." },
-            sceneName: { type: Type.STRING, description: "The name of the scene for this look." },
-            accessoryNames: { type: Type.ARRAY, items: { type: Type.STRING }, description: "A list of accessory names for this look. Can be empty." }
-          },
-          required: ['description', 'productNames', 'modelName', 'sceneName', 'accessoryNames']
+export const checkVideoStatus = async (operation: any) => {
+    try {
+        const updatedOperation = await ai.operations.getVideosOperation({ operation });
+        if (updatedOperation.done && updatedOperation.response?.generatedVideos?.[0]?.video?.uri) {
+            const downloadLink = updatedOperation.response.generatedVideos[0].video.uri;
+            const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+            if (!response.ok) throw new Error(`Failed to fetch video: ${response.statusText}`);
+            const blob = await response.blob();
+            return new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
         }
-    };
-    
-    const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: responseSchema,
-        },
-    });
-
-    const jsonText = response.text.trim();
-    return JSON.parse(jsonText);
+        return null; // Not done yet
+    } catch (error) {
+        console.error("Error in checkVideoStatus:", error);
+        // Pass through the more specific error from the operation if available
+        if (operation?.error?.message) {
+            throw new Error(`Video generation failed: ${operation.error.message}`);
+        }
+        throw new Error(`Failed to check video status. Details: ${error instanceof Error ? error.message : String(error)}`);
+    }
 };

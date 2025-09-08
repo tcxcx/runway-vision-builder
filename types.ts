@@ -49,13 +49,27 @@ export interface StylistSuggestion {
 
 // Type for the generated result from the final composition.
 export interface GeneratedResult {
-    image?: string;
-    video?: string;
-    error?: string;
-    videoOperation?: any; 
-    cutoutImage?: string;
     model: Model;
+    images: { angle: string; image: string; }[];
+    representativeImage: string; // Used as the base for video generation
+    activeDisplayUrl?: string; // The URL of the currently displayed image or video in the gallery
+    videoPrompt?: string;
+
+    // Preview
+    previewVideo?: string;
+    previewVideoOperation?: any;
+    isPreviewLoading?: boolean;
+    previewError?: string;
+
+    // Final Video
+    finalVideo?: string;
+    finalVideoOperation?: any;
+    isFinalLoading?: boolean;
+    finalError?: string;
+
+    // General image generation error
+    error?: string;
 }
 
 // Type for the state of the generation process.
-export type GenerationState = 'idle' | 'loading-image' | 'loading-video-description' | 'loading-video' | 'loading-cutout' | 'success' | 'error';
+export type GenerationState = 'idle' | 'loading-image' | 'image-success' | 'error';

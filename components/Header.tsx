@@ -38,7 +38,7 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick, theme, setTheme }) => {
             title="Start Over"
           >
             <img 
-              src="/assets/visionrunwaybanana.png" 
+              src="./assets/visionrunwaybanana.png" 
               alt="VisionRunway Logo" 
               className="w-8 h-8 transition-transform group-hover:-rotate-12" 
             />
